@@ -391,35 +391,30 @@ const updateBook = async (
       throw error;
     }
 
+    const newAvailableCopies =
+      newTotalCopies - rentedCopies;
+
     updateData.totalCopies =
       newTotalCopies;
 
     updateData.availableCopies =
-      newTotalCopies - rentedCopies;
+      newAvailableCopies;
   }
 
   // ----------------------------------------------------
-  // STATUS
+  // AUTO STATUS FROM AVAILABLE COPIES
   // ----------------------------------------------------
 
-  if (data.status !== undefined) {
-    if (
-      !["AVAILABLE", "UNAVAILABLE"].includes(
-        data.status
-      )
-    ) {
-      const error = new Error(
-        "Invalid book status"
-      );
+  const resolvedAvailableCopies =
+    Number(
+      updateData.availableCopies ??
+        book.availableCopies
+    );
 
-      error.statusCode = 400;
-
-      throw error;
-    }
-
-    updateData.status =
-      data.status;
-  }
+  updateData.status =
+    resolvedAvailableCopies > 0
+      ? "AVAILABLE"
+      : "UNAVAILABLE";
 
   // ----------------------------------------------------
   // UPDATE

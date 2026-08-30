@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 
 import {
   getAllReservations,
-  approveReservation,
-  rejectReservation,
-  completeReservation,
 } from "@/services/reservation.service";
 
 const ReservationsPage = () => {
@@ -19,26 +16,6 @@ const ReservationsPage = () => {
 
   const [loading, setLoading] =
     useState(true);
-
-  // ======================================================
-  // ACTION LOADING
-  // ======================================================
-
-  const [actionLoading, setActionLoading] =
-    useState(false);
-
-  const [selectedReservation, setSelectedReservation] =
-    useState(null);
-
-  // ======================================================
-  // REJECT MODAL
-  // ======================================================
-
-  const [showRejectModal, setShowRejectModal] =
-    useState(false);
-
-  const [rejectReason, setRejectReason] =
-    useState("");
 
   // ======================================================
   // MESSAGE
@@ -96,6 +73,7 @@ const ReservationsPage = () => {
   // INITIAL LOAD
   // ======================================================
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     fetchReservations();
   }, []);
@@ -107,165 +85,6 @@ const ReservationsPage = () => {
   const clearMessages = () => {
     setError("");
     setSuccess("");
-  };
-
-  // ======================================================
-  // APPROVE RESERVATION
-  // ======================================================
-
-  const handleApprove = async (
-    reservationId
-  ) => {
-    try {
-      clearMessages();
-
-      setActionLoading(true);
-
-      await approveReservation(
-        reservationId
-      );
-
-      setSuccess(
-        "Reservation approved successfully."
-      );
-
-      await fetchReservations();
-    } catch (error) {
-      console.error(
-        "Approve reservation error:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Failed to approve reservation"
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // ======================================================
-  // OPEN REJECT MODAL
-  // ======================================================
-
-  const openRejectModal = (
-    reservation
-  ) => {
-    clearMessages();
-
-    setSelectedReservation(
-      reservation
-    );
-
-    setRejectReason("");
-
-    setShowRejectModal(true);
-  };
-
-  // ======================================================
-  // CLOSE REJECT MODAL
-  // ======================================================
-
-  const closeRejectModal = () => {
-    if (actionLoading) {
-      return;
-    }
-
-    setShowRejectModal(false);
-
-    setSelectedReservation(null);
-
-    setRejectReason("");
-  };
-
-  // ======================================================
-  // REJECT RESERVATION
-  // ======================================================
-
-  const handleReject = async () => {
-    if (!selectedReservation) {
-      return;
-    }
-
-    if (!rejectReason.trim()) {
-      setError(
-        "Please enter a rejection reason."
-      );
-
-      return;
-    }
-
-    try {
-      clearMessages();
-
-      setActionLoading(true);
-
-      await rejectReservation(
-        selectedReservation.id,
-        rejectReason.trim()
-      );
-
-      setSuccess(
-        "Reservation rejected successfully."
-      );
-
-      setShowRejectModal(false);
-
-      setSelectedReservation(null);
-
-      setRejectReason("");
-
-      await fetchReservations();
-    } catch (error) {
-      console.error(
-        "Reject reservation error:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Failed to reject reservation"
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // ======================================================
-  // COMPLETE RESERVATION
-  // ======================================================
-
-  const handleComplete = async (
-    reservationId
-  ) => {
-    try {
-      clearMessages();
-
-      setActionLoading(true);
-
-      await completeReservation(
-        reservationId
-      );
-
-      setSuccess(
-        "Reservation completed successfully."
-      );
-
-      await fetchReservations();
-    } catch (error) {
-      console.error(
-        "Complete reservation error:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Failed to complete reservation"
-      );
-    } finally {
-      setActionLoading(false);
-    }
   };
 
   // ======================================================
@@ -400,12 +219,11 @@ const ReservationsPage = () => {
             ERROR
         ================================================== */}
 
-        {error &&
-          !showRejectModal && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
 
         {/* ==================================================
             STATS
@@ -733,90 +551,11 @@ const ReservationsPage = () => {
                           <td className="px-5 py-5">
 
                             <div className="flex justify-end gap-2">
-
-                              {/* APPROVE */}
-
-                              {reservation.status ===
-                                "PENDING" && (
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleApprove(
-                                      reservation.id
-                                    )
-                                  }
-                                  disabled={
-                                    actionLoading
-                                  }
-                                  className="rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Approve
-                                </button>
-
-                              )}
-
-                              {/* REJECT */}
-
-                              {reservation.status ===
-                                "PENDING" && (
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openRejectModal(
-                                      reservation
-                                    )
-                                  }
-                                  disabled={
-                                    actionLoading
-                                  }
-                                  className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Reject
-                                </button>
-
-                              )}
-
-                              {/* COMPLETE */}
-
-                              {reservation.status ===
-                                "APPROVED" && (
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleComplete(
-                                      reservation.id
-                                    )
-                                  }
-                                  disabled={
-                                    actionLoading
-                                  }
-                                  className="rounded-lg bg-black px-3 py-2 text-xs font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Complete
-                                </button>
-
-                              )}
-
-                              {/* NO ACTION */}
-
-                              {[
-                                "REJECTED",
-                                "CANCELLED",
-                                "COMPLETED",
-                                "EXPIRED",
-                              ].includes(
-                                reservation.status
-                              ) && (
-
-                                <span className="text-xs text-gray-400">
-                                  No action
-                                </span>
-
-                              )}
-
+                              <span className="text-xs text-gray-400">
+                                {reservation.status === "PENDING"
+                                  ? "Auto FIFO"
+                                  : "No action"}
+                              </span>
                             </div>
 
                           </td>
@@ -839,153 +578,6 @@ const ReservationsPage = () => {
 
       </div>
 
-      {/* ====================================================
-          REJECT MODAL
-      ==================================================== */}
-
-      {showRejectModal &&
-        selectedReservation && (
-
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
-              {/* HEADER */}
-
-              <div className="flex items-start justify-between">
-
-                <div>
-
-                  <h2 className="text-xl font-bold text-gray-900">
-                    Reject Reservation
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    Provide a reason for rejection.
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    closeRejectModal
-                  }
-                  disabled={
-                    actionLoading
-                  }
-                  className="text-xl text-gray-400 hover:text-gray-700 disabled:opacity-50"
-                >
-                  ✕
-                </button>
-
-              </div>
-
-              {/* RESERVATION INFO */}
-
-              <div className="mt-5 rounded-xl bg-gray-50 p-4">
-
-                <p className="text-sm text-gray-500">
-                  Member
-                </p>
-
-                <p className="font-semibold text-gray-900">
-                  {
-                    selectedReservation
-                      .member?.name ||
-                    "Unknown Member"
-                  }
-                </p>
-
-                <p className="mt-3 text-sm text-gray-500">
-                  Book
-                </p>
-
-                <p className="font-semibold text-gray-900">
-                  {
-                    selectedReservation
-                      .book?.title ||
-                    "Unknown Book"
-                  }
-                </p>
-
-              </div>
-
-              {/* REASON */}
-
-              <div className="mt-5">
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Rejection Reason
-                </label>
-
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => {
-                    setRejectReason(
-                      e.target.value
-                    );
-
-                    setError("");
-                  }}
-                  disabled={
-                    actionLoading
-                  }
-                  rows={4}
-                  placeholder="Enter rejection reason..."
-                  className="w-full resize-none rounded-lg border px-4 py-3 outline-none focus:border-black disabled:bg-gray-100"
-                />
-
-              </div>
-
-              {/* MODAL ERROR */}
-
-              {error && (
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-
-              {/* BUTTONS */}
-
-              <div className="mt-6 flex gap-3">
-
-                <button
-                  type="button"
-                  onClick={
-                    closeRejectModal
-                  }
-                  disabled={
-                    actionLoading
-                  }
-                  className="flex-1 rounded-lg border px-4 py-3 font-medium hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleReject
-                  }
-                  disabled={
-                    actionLoading ||
-                    !rejectReason.trim()
-                  }
-                  className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                >
-                  {actionLoading
-                    ? "Rejecting..."
-                    : "Reject Reservation"}
-                </button>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        )}
 
     </div>
   );

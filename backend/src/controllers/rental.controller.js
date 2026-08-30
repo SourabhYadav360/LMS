@@ -11,12 +11,13 @@ const rentBook = async (req, res) => {
     // JWT se logged-in member ki ID
     const memberId = req.user.userId;
 
-    const { bookId, days } = req.body;
+    const { bookId, days, quantity } = req.body;
 
     const result = await rentalService.rentBook({
       memberId,
       bookId,
       days,
+      quantity,
     });
 
     return res.status(201).json({

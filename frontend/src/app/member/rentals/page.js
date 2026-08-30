@@ -209,6 +209,14 @@ export default function RentalsPage() {
                   </th>
 
                   <th className="p-4 text-left text-sm font-semibold text-blue-900">
+                    Quantity
+                  </th>
+
+                  <th className="p-4 text-left text-sm font-semibold text-blue-900">
+                    Amount
+                  </th>
+
+                  <th className="p-4 text-left text-sm font-semibold text-blue-900">
                     Start Date
                   </th>
 
@@ -294,6 +302,18 @@ export default function RentalsPage() {
 
                         </div>
 
+                      </td>
+
+                      {/* QUANTITY */}
+
+                      <td className="p-4 text-sm text-gray-600">
+                        {rental.quantity || 1} {rental.quantity > 1 ? "copies" : "copy"}
+                      </td>
+
+                      {/* AMOUNT */}
+
+                      <td className="p-4 text-sm font-semibold text-gray-900">
+                        ₹{rental.rentalAmount || 0}
                       </td>
 
                       {/* START DATE */}

@@ -71,23 +71,18 @@ export default function MemberLayout({ children }) {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR - Fixed Position */}
       <MemberSidebar user={user} />
 
-      {/* RIGHT SIDE */}
-      <div className="ml-64 min-h-screen">
+      {/* NAVBAR - Fixed Position */}
+      <MemberNavbar user={user} />
 
-        {/* NAVBAR */}
-        <MemberNavbar user={user} />
-
-        {/* PAGE CONTENT */}
-        <main className="pt-20 p-6">
-          <div className="mx-auto max-w-7xl">
-            {children}
-          </div>
-        </main>
-
-      </div>
+      {/* PAGE CONTENT - Main content area with proper margins */}
+      <main className="ml-64 pt-20 min-h-screen">
+        <div className="p-6 mx-auto max-w-7xl">
+          {children}
+        </div>
+      </main>
 
     </div>
   );

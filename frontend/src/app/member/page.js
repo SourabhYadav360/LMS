@@ -1,163 +1,139 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
-import {
-  getMe,
-} from "@/services/auth.service";
+import { getMe } from "@/services/auth.service";
+import { getMyRentals } from "@/services/rental.service";
+import { getMyReservations } from "@/services/reservation.service";
+import { getBooks } from "@/services/book.service";
 
-import {
-  updateMember,
-} from "@/services/member.service";
-
-export default function ProfilePage() {
+export default function MemberDashboard() {
   const [user, setUser] = useState(null);
-
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-  });
-
-  // ======================================================
-  // GET PROFILE
-  // ======================================================
-
-  const loadProfile = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await getMe();
-
-      console.log(
-        "PROFILE RESPONSE:",
-        response
-      );
-
-      const currentUser =
-        response?.data?.user ||
-        response?.user ||
-        null;
-
-      if (!currentUser) {
-        setError("User information not found");
-        return;
-      }
-
-      setUser(currentUser);
-
-      setFormData({
-        name: currentUser.name || "",
-        email: currentUser.email || "",
-      });
-    } catch (error) {
-      console.error(
-        "Get profile error:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Failed to load profile"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [activeRentals, setActiveRentals] = useState(0);
+  const [activeReservations, setActiveReservations] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [availableBooks, setAvailableBooks] = useState(0);
 
   // ======================================================
-  // INITIAL LOAD
+  // LOAD DASHBOARD DATA
   // ======================================================
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-  // ======================================================
-  // INPUT CHANGE
-  // ======================================================
+        // USER
+        const userResponse = await getMe();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+        const currentUser =
+          userResponse?.data?.user ||
+          userResponse?.user ||
+          userResponse?.data ||
+          null;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+        if (currentUser) {
+          setUser(currentUser);
 
-    setError("");
-    setSuccess("");
-  };
-
-  // ======================================================
-  // UPDATE PROFILE
-  // ======================================================
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    try {
-      setUpdating(true);
-      setError("");
-      setSuccess("");
-
-      if (!formData.name.trim()) {
-        setError("Name is required");
-        return;
-      }
-
-      if (!formData.email.trim()) {
-        setError("Email is required");
-        return;
-      }
-
-      const userId =
-        user?._id || user?.id;
-
-      if (!userId) {
-        setError("User ID not found");
-        return;
-      }
-
-      const response = await updateMember(
-        userId,
-        {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
+          setWalletBalance(
+            Number(
+              currentUser?.wallet?.balance ??
+              currentUser?.walletBalance ??
+              0
+            )
+          );
         }
-      );
 
-      console.log(
-        "UPDATE PROFILE RESPONSE:",
-        response
-      );
+        // RENTALS
+        try {
+          const rentalsResponse = await getMyRentals();
 
-      setSuccess(
-        "Profile updated successfully!"
-      );
+          const rentals =
+            rentalsResponse?.data?.rentals ||
+            rentalsResponse?.rentals ||
+            [];
 
-      // Latest profile data
-      await loadProfile();
-    } catch (error) {
-      console.error(
-        "Update profile error:",
-        error
-      );
+          const active = rentals.filter(
+            (r) => r.status === "ACTIVE"
+          ).length;
 
-      setError(
-        error?.message ||
-          "Failed to update profile"
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
+          setActiveRentals(active);
+        } catch (err) {
+          console.error("Error loading rentals:", err);
+        }
+
+        // RESERVATIONS
+        try {
+          const reservationsResponse =
+            await getMyReservations();
+
+          const reservations =
+            reservationsResponse?.data?.reservations ||
+            reservationsResponse?.reservations ||
+            [];
+
+          const active = reservations.filter(
+            (r) =>
+              r.status === "PENDING" ||
+              r.status === "ACTIVE"
+          ).length;
+
+          setActiveReservations(active);
+        } catch (err) {
+          console.error(
+            "Error loading reservations:",
+            err
+          );
+        }
+
+        // BOOKS
+        try {
+          const booksResponse = await getBooks();
+
+          const books =
+            booksResponse?.data?.books ||
+            booksResponse?.books ||
+            booksResponse?.data ||
+            [];
+
+          const available = books.filter(
+            (book) =>
+              Number(
+                book.availableCopies ??
+                book.available_copies ??
+                0
+              ) > 0
+          ).length;
+
+          setAvailableBooks(available);
+        } catch (err) {
+          console.error(
+            "Error loading books:",
+            err
+          );
+        }
+      } catch (err) {
+        console.error(
+          "Dashboard error:",
+          err
+        );
+
+        setError(
+          err?.message ||
+            "Failed to load dashboard"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
 
   // ======================================================
   // LOADING
@@ -165,13 +141,13 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
 
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-900" />
 
           <p className="mt-4 text-sm text-gray-500">
-            Loading profile...
+            Loading dashboard...
           </p>
 
         </div>
@@ -180,234 +156,203 @@ export default function ProfilePage() {
   }
 
   // ======================================================
-  // ERROR WITHOUT USER
+  // DASHBOARD
   // ======================================================
-
-  if (!user) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-
-        <p className="font-medium text-red-600">
-          {error || "Profile not found"}
-        </p>
-
-        <button
-          onClick={loadProfile}
-          className="mt-4 rounded-lg bg-blue-900 px-5 py-2 text-sm font-semibold text-white"
-        >
-          Try Again
-        </button>
-
-      </div>
-    );
-  }
-
-  const userId =
-    user?._id || user?.id;
 
   return (
     <div className="space-y-6">
 
       {/* ==================================================
-          HEADER
+          WELCOME
       ================================================== */}
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          My Profile
+        <h1 className="text-3xl font-bold text-blue-900">
+          Welcome, {user?.name || "Member"}
         </h1>
 
         <p className="mt-1 text-gray-500">
-          View and update your account information.
+          Here's your library dashboard at a glance.
         </p>
       </div>
-
-      {/* ==================================================
-          SUCCESS
-      ================================================== */}
-
-      {success && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-medium text-green-700">
-          {success}
-        </div>
-      )}
 
       {/* ==================================================
           ERROR
       ================================================== */}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* ==================================================
+          DASHBOARD CARDS
+      ================================================== */}
 
-        {/* ==================================================
-            PROFILE CARD
-        ================================================== */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
 
-        <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+        {/* ACTIVE RENTALS */}
 
-          <div className="flex flex-col items-center text-center">
-
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-900 text-3xl font-bold text-white">
-              {user?.name
-                ?.charAt(0)
-                ?.toUpperCase() || "M"}
-            </div>
-
-            <h2 className="mt-4 text-xl font-bold text-gray-900">
-              {user.name}
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              {user.email}
-            </p>
-
-            <span className="mt-4 rounded-full bg-blue-100 px-4 py-1.5 text-xs font-semibold text-blue-700">
-              {user.role || "MEMBER"}
-            </span>
-
-          </div>
-
-          <div className="mt-6 border-t pt-5">
+        <Link href="/member/rentals">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
 
             <div className="flex items-center justify-between">
 
-              <span className="text-sm text-gray-500">
-                Account Status
-              </span>
+              <div>
+                <p className="text-sm text-gray-500">
+                  Active Rentals
+                </p>
 
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  user.status === "ACTIVE"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {user.status || "ACTIVE"}
-              </span>
+                <p className="mt-2 text-3xl font-bold text-blue-900">
+                  {activeRentals}
+                </p>
+              </div>
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl">
+                📖
+              </div>
 
             </div>
 
-          </div>
-
-        </div>
-
-        {/* ==================================================
-            EDIT PROFILE
-        ================================================== */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-
-          <div className="mb-6">
-
-            <h2 className="text-xl font-bold text-gray-900">
-              Personal Information
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Update your basic account details.
+            <p className="mt-4 text-xs font-medium text-blue-600">
+              View rentals →
             </p>
 
           </div>
+        </Link>
 
-          <form
-            onSubmit={handleUpdate}
-            className="space-y-5"
+        {/* ACTIVE RESERVATIONS */}
+
+        <Link href="/member/reservations">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="text-sm text-gray-500">
+                  Active Reservations
+                </p>
+
+                <p className="mt-2 text-3xl font-bold text-blue-900">
+                  {activeReservations}
+                </p>
+              </div>
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl">
+                🔖
+              </div>
+
+            </div>
+
+            <p className="mt-4 text-xs font-medium text-blue-600">
+              View reservations →
+            </p>
+
+          </div>
+        </Link>
+
+        {/* WALLET */}
+
+        <Link href="/member/wallet">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="text-sm text-gray-500">
+                  Wallet Balance
+                </p>
+
+                <p className="mt-2 text-3xl font-bold text-green-600">
+                  ₹{walletBalance.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-xl">
+                💳
+              </div>
+
+            </div>
+
+            <p className="mt-4 text-xs font-medium text-green-600">
+              Manage wallet →
+            </p>
+
+          </div>
+        </Link>
+
+        {/* AVAILABLE BOOKS */}
+
+        <Link href="/member/books">
+          <div className="cursor-pointer rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="text-sm text-gray-500">
+                  Available Books
+                </p>
+
+                <p className="mt-2 text-3xl font-bold text-blue-900">
+                  {availableBooks}
+                </p>
+              </div>
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-xl">
+                📚
+              </div>
+
+            </div>
+
+            <p className="mt-4 text-xs font-medium text-blue-600">
+              Browse books →
+            </p>
+
+          </div>
+        </Link>
+
+      </div>
+
+      {/* ==================================================
+          QUICK LINKS
+      ================================================== */}
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+        <h2 className="text-lg font-bold text-gray-900">
+          Quick Links
+        </h2>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+
+          <Link
+            href="/member/books"
+            className="w-full rounded-lg border border-blue-600 px-4 py-3 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
           >
+            Browse Books
+          </Link>
 
-            {/* NAME */}
+          <Link
+            href="/member/rentals"
+            className="w-full rounded-lg border border-blue-600 px-4 py-3 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
+          >
+            My Rentals
+          </Link>
 
-            <div>
+          <Link
+            href="/member/reservations"
+            className="w-full rounded-lg border border-blue-600 px-4 py-3 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
+          >
+            My Reservations
+          </Link>
 
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your name"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
-              />
-
-            </div>
-
-            {/* EMAIL */}
-
-            <div>
-
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Email
-              </label>
-
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-blue-900 focus:ring-1 focus:ring-blue-900"
-              />
-
-            </div>
-
-            {/* USER ID */}
-
-            <div>
-
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                User ID
-              </label>
-
-              <input
-                type="text"
-                value={userId || ""}
-                disabled
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500"
-              />
-
-            </div>
-
-            {/* ROLE */}
-
-            <div>
-
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Role
-              </label>
-
-              <input
-                type="text"
-                value={user.role || "MEMBER"}
-                disabled
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500"
-              />
-
-            </div>
-
-            {/* BUTTON */}
-
-            <div className="flex justify-end pt-2">
-
-              <button
-                type="submit"
-                disabled={updating}
-                className="rounded-xl bg-blue-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-950 disabled:cursor-not-allowed disabled:bg-gray-400"
-              >
-                {updating
-                  ? "Updating..."
-                  : "Save Changes"}
-              </button>
-
-            </div>
-
-          </form>
+          <Link
+            href="/member/wallet"
+            className="w-full rounded-lg border border-green-600 px-4 py-3 text-center text-sm font-semibold text-green-600 transition hover:bg-green-50"
+          >
+            Wallet
+          </Link>
 
         </div>
 

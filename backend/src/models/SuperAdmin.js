@@ -41,6 +41,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: "ACTIVE",
       },
+
+      role: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: "SUPER_ADMIN",
+      },
     },
     {
       sequelize,

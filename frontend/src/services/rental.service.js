@@ -6,13 +6,14 @@ import api from "@/lib/api";
 // RENT BOOK
 // ======================================================
 
-export const rentBook = async ({ bookId, days }) => {
+export const rentBook = async ({ bookId, days, quantity }) => {
   return await api("/rentals", {
     method: "POST",
 
     body: JSON.stringify({
       bookId,
       days,
+      quantity,
     }),
   });
 };

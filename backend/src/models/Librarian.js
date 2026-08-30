@@ -47,6 +47,12 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: "ACTIVE",
       },
 
+      role: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: "LIBRARIAN",
+      },
+
       bookView: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,

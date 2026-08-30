@@ -218,15 +218,24 @@ const fundMemberWallet = async ({
     // ==================================================
     // UPDATE MEMBER WALLET
     // ==================================================
+    // NOTE: fundedByLibrarianId is only set on
+    // the FIRST funding. Subsequent fundings
+    // do NOT change this value.
+    // ==================================================
+
+    const updateData = {
+      balance:
+        memberBalanceAfter,
+    };
+
+    // Set fundedByLibrarianId only if not already set
+    if (!memberWallet.fundedByLibrarianId) {
+      updateData.fundedByLibrarianId =
+        librarianId;
+    }
 
     await memberWallet.update(
-      {
-        balance:
-          memberBalanceAfter,
-
-        fundedByLibrarianId:
-          librarianId,
-      },
+      updateData,
       {
         transaction,
       }

@@ -9,6 +9,10 @@ const {
   Reservation,
 } = require("../models");
 
+const {
+  processReservationQueue,
+} = require("../queue/reservationQueue");
+
 const createError = (message, statusCode) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -86,32 +90,12 @@ const createReservation = async ({
     }
 
     // --------------------------------------------------
-    // 3. CHECK ALREADY RENTED
+    // 3. CHECK EXISTING RESERVATION
     // --------------------------------------------------
 
-    const activeRental =
-      await Rental.findOne({
-        where: {
-          memberId,
-          bookId,
-
-          status: {
-            [Sequelize.Op.in]: [
-              "ACTIVE",
-              "OVERDUE",
-            ],
-          },
-        },
-
-        transaction,
-      });
-
-    if (activeRental) {
-      throw createError(
-        "You have already rented this book",
-        400
-      );
-    }
+    // Reservation ko duplicate-rent rule se block nahi karna.
+    // Member same book ko reserve kar sakta hai even agar usne usko pehle rent kiya ho,
+    // jab book unavailable ho aur FIFO queue apply ho.
 
     // --------------------------------------------------
     // 4. CHECK EXISTING RESERVATION
@@ -178,6 +162,15 @@ const createReservation = async ({
 
     await transaction.commit();
 
+    try {
+      await processReservationQueue(bookId);
+    } catch (queueError) {
+      console.error(
+        "Reservation queue processing failed:",
+        queueError
+      );
+    }
+
     return reservation;
   } catch (error) {
     await transaction.rollback();
@@ -217,7 +210,7 @@ const getMyReservations = async (
       ],
 
       order: [
-        ["createdAt", "DESC"],
+        ["createdAt", "ASC"],
       ],
     });
 
@@ -366,7 +359,7 @@ const getAllReservations =
         ],
 
         order: [
-          ["createdAt", "DESC"],
+          ["createdAt", "ASC"],
         ],
       });
 

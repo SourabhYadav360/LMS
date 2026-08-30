@@ -90,18 +90,20 @@ export default function LibrarianLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar - Fixed Position */}
       <LibrarianSidebar
         permissions={user.permissions || {}}
         user={user}
       />
 
-      {/* Navbar */}
+      {/* Navbar - Fixed Position */}
       <LibrarianNavbar user={user} />
 
-      {/* Page Content */}
-      <main className="ml-64 pt-20">
-        {children}
+      {/* Page Content - Main content area with proper margins */}
+      <main className="ml-64 pt-20 min-h-screen">
+        <div className="p-6">
+          {children}
+        </div>
       </main>
     </div>
   );

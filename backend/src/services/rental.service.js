@@ -10,6 +10,10 @@ const {
   sequelize,
 } = require("../models");
 
+const {
+  processReservationQueue,
+} = require("../queue/reservationQueue");
+
 // ======================================================
 // CONSTANTS
 // ======================================================
@@ -38,8 +42,10 @@ const rentBook = async ({
   bookId,
   librarianId = null,
   days,
+  quantity = 1,
 }) => {
   const rentalDays = Number(days);
+  const rentalQuantity = Number(quantity);
 
   // ====================================================
   // VALIDATION
@@ -65,6 +71,16 @@ const rentBook = async ({
   ) {
     throw createError(
       "Days must be a positive integer",
+      400
+    );
+  }
+
+  if (
+    !Number.isInteger(rentalQuantity) ||
+    rentalQuantity <= 0
+  ) {
+    throw createError(
+      "Quantity must be a positive integer",
       400
     );
   }
@@ -140,6 +156,20 @@ const rentBook = async ({
     }
 
     // ==================================================
+    // 3.5. CHECK QUANTITY vs AVAILABLE COPIES
+    // ==================================================
+
+    if (
+      rentalQuantity >
+      availableCopies
+    ) {
+      throw createError(
+        `Only ${availableCopies} copies available. Cannot rent ${rentalQuantity} copies.`,
+        400
+      );
+    }
+
+    // ==================================================
     // 4. CHECK WHETHER MEMBER ALREADY HAS THIS BOOK
     // ==================================================
 
@@ -181,7 +211,16 @@ const rentBook = async ({
     }
 
     // ==================================================
-    // 6. CHECK BALANCE
+    // 6. CALCULATE TOTAL RENTAL AMOUNT
+    // ==================================================
+
+    const totalRentalAmount =
+      rentalQuantity *
+      rentalDays *
+      RENTAL_AMOUNT;
+
+    // ==================================================
+    // 7. CHECK BALANCE
     // ==================================================
 
     const memberBalanceBefore =
@@ -200,24 +239,24 @@ const rentBook = async ({
 
     if (
       memberBalanceBefore <
-      RENTAL_AMOUNT
+      totalRentalAmount
     ) {
       throw createError(
-        `Insufficient wallet balance. ₹${RENTAL_AMOUNT} required.`,
+        `Insufficient wallet balance. ₹${totalRentalAmount} required. Current balance: ₹${memberBalanceBefore}`,
         400
       );
     }
 
     // ==================================================
-    // 7. CALCULATE NEW MEMBER BALANCE
+    // 8. CALCULATE NEW MEMBER BALANCE
     // ==================================================
 
     const memberBalanceAfter =
       memberBalanceBefore -
-      RENTAL_AMOUNT;
+      totalRentalAmount;
 
     // ==================================================
-    // 8. CREATE RENTAL FIRST
+    // 9. CREATE RENTAL FIRST
     // ==================================================
 
     const rentedAt = new Date();
@@ -242,6 +281,9 @@ const rentBook = async ({
 
           bookId,
 
+          quantity:
+            rentalQuantity,
+
           rentedAt,
 
           dueDate,
@@ -249,7 +291,7 @@ const rentBook = async ({
           returnedAt: null,
 
           rentalAmount:
-            RENTAL_AMOUNT,
+            totalRentalAmount,
 
           settlementStatus:
             "SETTLED",
@@ -265,7 +307,7 @@ const rentBook = async ({
       );
 
     // ==================================================
-    // 9. DEBIT MEMBER WALLET
+    // 10. DEBIT MEMBER WALLET
     // ==================================================
 
     await memberWallet.update(
@@ -279,7 +321,7 @@ const rentBook = async ({
     );
 
     // ==================================================
-    // 10. MEMBER WALLET TRANSACTION
+    // 11. MEMBER WALLET TRANSACTION
     // ==================================================
 
     await WalletTransaction.create(
@@ -292,7 +334,7 @@ const rentBook = async ({
         type: "DEBIT",
 
         amount:
-          RENTAL_AMOUNT,
+          totalRentalAmount,
 
         balanceBefore:
           memberBalanceBefore,
@@ -301,7 +343,7 @@ const rentBook = async ({
           memberBalanceAfter,
 
         description:
-          `Book rental: ${book.title}`,
+          `Book rental: ${book.title} (Qty: ${rentalQuantity}, Days: ${rentalDays})`,
 
         referenceType:
           "RENTAL",
@@ -315,10 +357,10 @@ const rentBook = async ({
     );
 
     // ==================================================
-    // 11. LIBRARIAN WALLET
+    // 12. LIBRARIAN WALLET
     //
-    // Agar librarianId available hai tabhi
-    // librarian wallet credit hoga.
+    // Credit the librarian who funded this member's wallet.
+    // This maintains the funding source relationship.
     // ==================================================
 
     let librarianWallet = null;
@@ -329,11 +371,15 @@ const rentBook = async ({
     let librarianBalanceAfter =
       null;
 
-    if (librarianId) {
+    const fundingLibrarianId =
+      memberWallet.fundedByLibrarianId;
+
+    if (fundingLibrarianId) {
       librarianWallet =
         await LibrarianWallet.findOne({
           where: {
-            librarianId,
+            librarianId:
+              fundingLibrarianId,
           },
           transaction,
           lock: transaction.LOCK.UPDATE,
@@ -344,7 +390,8 @@ const rentBook = async ({
         librarianWallet =
           await LibrarianWallet.create(
             {
-              librarianId,
+              librarianId:
+                fundingLibrarianId,
               balance: 0,
             },
             {
@@ -360,7 +407,7 @@ const rentBook = async ({
 
       librarianBalanceAfter =
         librarianBalanceBefore +
-        RENTAL_AMOUNT;
+        totalRentalAmount;
 
       await librarianWallet.update(
         {
@@ -387,7 +434,7 @@ const rentBook = async ({
           type: "CREDIT",
 
           amount:
-            RENTAL_AMOUNT,
+            totalRentalAmount,
 
           balanceBefore:
             librarianBalanceBefore,
@@ -396,7 +443,7 @@ const rentBook = async ({
             librarianBalanceAfter,
 
           description:
-            `Rental earning: ${book.title}`,
+            `Rental earning from member ID ${memberId}: ${book.title} (Qty: ${rentalQuantity})`,
 
           referenceType:
             "RENTAL",
@@ -411,11 +458,12 @@ const rentBook = async ({
     }
 
     // ==================================================
-    // 12. DECREASE BOOK STOCK
+    // 13. DECREASE BOOK STOCK
     // ==================================================
 
     const newAvailableCopies =
-      availableCopies - 1;
+      availableCopies -
+      rentalQuantity;
 
     await book.update(
       {
@@ -433,7 +481,7 @@ const rentBook = async ({
     );
 
     // ==================================================
-    // 13. COMMIT
+    // 14. COMMIT
     // ==================================================
 
     await transaction.commit();
@@ -454,6 +502,9 @@ const rentBook = async ({
 
         bookId:
           rental.bookId,
+
+        quantity:
+          rental.quantity,
 
         rentalAmount:
           Number(
@@ -488,7 +539,7 @@ const rentBook = async ({
             memberBalanceBefore,
 
           amount:
-            RENTAL_AMOUNT,
+            totalRentalAmount,
 
           balanceAfter:
             memberBalanceAfter,
@@ -496,6 +547,9 @@ const rentBook = async ({
 
         librarian: librarianWallet
           ? {
+              librarianId:
+                fundingLibrarianId,
+
               walletId:
                 librarianWallet.id,
 
@@ -503,7 +557,7 @@ const rentBook = async ({
                 librarianBalanceBefore,
 
               amount:
-                RENTAL_AMOUNT,
+                totalRentalAmount,
 
               balanceAfter:
                 librarianBalanceAfter,
@@ -864,8 +918,12 @@ const returnBook = async ({
         book.availableCopies
       );
 
+    const rentalQuantity =
+      Number(rental.quantity) || 1;
+
     const newAvailableCopies =
-      currentCopies + 1;
+      currentCopies +
+      rentalQuantity;
 
     await book.update(
       {
@@ -885,6 +943,15 @@ const returnBook = async ({
     // ==================================================
 
     await transaction.commit();
+
+    try {
+      await processReservationQueue(book.id);
+    } catch (queueError) {
+      console.error(
+        "Reservation queue processing failed after return:",
+        queueError
+      );
+    }
 
     // ==================================================
     // RESPONSE

@@ -72,6 +72,16 @@ module.exports = (sequelize, DataTypes) => {
       },
 
       // ==========================================
+      // QUANTITY
+      // ==========================================
+
+      quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+      },
+
+      // ==========================================
       // SETTLEMENT
       // ==========================================
 
