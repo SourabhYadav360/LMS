@@ -2,83 +2,76 @@
 
 const express = require("express");
 
-const walletController = require("../controllers/wallet.controller");
+const {
+  getMyWallet,
+  getMyTransactions,
+  fundMember,
+  transferRent,
+  getRevenue,
+} = require("../controllers/wallet.controller");
 
-const authenticate = require("../middlewares/auth.middleware");
-const authorize = require("../middlewares/authorize.middleware");
+const { authenticate } = require("../middlewares/auth.middleware");
+const {
+  requirePermission,
+} = require("../middlewares/permission.middleware");
 
 const router = express.Router();
 
 // ======================================================
 // GET MY WALLET
-// MEMBER / LIBRARIAN / SUPER ADMIN
 // ======================================================
 
 router.get(
-  "/my-wallet",
+  "/",
   authenticate,
-  authorize(
-    "MEMBER",
-    "LIBRARIAN",
-    "SUPER_ADMIN"
-  ),
-  walletController.getMyWallet
+  requirePermission("walletView"),
+  getMyWallet
 );
 
 // ======================================================
 // GET MY TRANSACTIONS
-// MEMBER / LIBRARIAN / SUPER ADMIN
 // ======================================================
 
 router.get(
-  "/my-transactions",
+  "/transactions",
   authenticate,
-  authorize(
-    "MEMBER",
-    "LIBRARIAN",
-    "SUPER_ADMIN"
-  ),
-  walletController.getMyTransactions
+  requirePermission("walletView"),
+  getMyTransactions
 );
 
 // ======================================================
-// LIBRARIAN → MEMBER WALLET
+// FUND MEMBER WALLET
+// LIBRARIAN → MEMBER
 // ======================================================
 
 router.post(
   "/fund-member",
   authenticate,
-  authorize("LIBRARIAN"),
-  walletController.fundMemberWallet
+  requirePermission("walletManage"),
+  fundMember
 );
 
 // ======================================================
-// MEMBER PAY FINE
+// TRANSFER RENT
+// MEMBER → LIBRARIAN
 // ======================================================
 
 router.post(
-  "/pay-fine",
+  "/transfer-rent",
   authenticate,
-  authorize("MEMBER"),
-  walletController.payFine
+  requirePermission("walletManage"),
+  transferRent  // 
 );
 
 // ======================================================
-// ADMIN / LIBRARIAN GET ANY WALLET
+// GET SUPER ADMIN REVENUE
 // ======================================================
 
 router.get(
-  "/:walletType/:ownerId",
+  "/revenue",
   authenticate,
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-  walletController.getWalletByOwner
+  requirePermission("walletView"),
+  getRevenue // This route is for super admin to get revenue details
 );
-
-// ======================================================
-// EXPORT
-// ======================================================
 
 module.exports = router;

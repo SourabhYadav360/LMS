@@ -15,16 +15,11 @@ export default function RegisterPage() {
     name: "",
     email: "",
     password: "",
-    confirmPassword: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // ======================================================
-  // HANDLE INPUT
-  // ======================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,86 +30,37 @@ export default function RegisterPage() {
     }));
   };
 
-  // ======================================================
-  // REGISTER
-  // ======================================================
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     setError("");
     setSuccess("");
 
-    // -------------------------------
-    // BASIC VALIDATION
-    // -------------------------------
-
-    if (
-      !form.name.trim() ||
-      !form.email.trim() ||
-      !form.password
-    ) {
-      setError(
-        "Name, email and password are required"
-      );
-      return;
-    }
-
-    if (form.password.length < 8) {
-      setError(
-        "Password must be at least 8 characters"
-      );
-      return;
-    }
-
-    if (
-      form.password !==
-      form.confirmPassword
-    ) {
-      setError("Passwords do not match");
-      return;
-    }
-
     try {
       setLoading(true);
 
-      // ==================================================
-      // STEP 1: REGISTER MEMBER
-      // ==================================================
+      // Register
+      await registerMember({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+      });
 
-      await registerMember(
-        form.name.trim(),
-        form.email.trim().toLowerCase(),
-        form.password
-      );
+      setSuccess("Registration successful. Logging you in...");
 
-      setSuccess(
-        "Registration successful. Logging you in..."
-      );
+      // Automatic Login
+      await login({
+        email: form.email,
+        password: form.password,
+      });
 
-      // ==================================================
-      // STEP 2: AUTOMATIC LOGIN
-      // ==================================================
-
-      await login(
-        form.email.trim().toLowerCase(),
-        form.password
-      );
-
-      // ==================================================
-      // STEP 3: MEMBER DASHBOARD
-      // ==================================================
-
+      // Dashboard
       router.replace("/member");
-
     } catch (error) {
-      console.error(
-        "Registration error:",
-        error
-      );
+      console.error("Registration error:", error);
 
       setError(
-        error.message ||
+        error.response?.data?.message ||
           "Registration failed"
       );
     } finally {
@@ -122,149 +68,140 @@ export default function RegisterPage() {
     }
   };
 
-  // ======================================================
-  // UI
-  // ======================================================
-
   return (
-    <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
 
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
 
-        {/* HEADER */}
-
+        {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">
+
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
+            <span className="text-2xl">📚</span>
+          </div>
+
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Create Account
           </h1>
 
-          <p className="mt-2 text-gray-500">
+          <p className="mt-2 text-sm text-slate-500">
             Register as a library member
           </p>
+
         </div>
 
-        {/* ERROR */}
-
+        {/* Error */}
         {error && (
-          <div className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
             {error}
           </div>
         )}
 
-        {/* SUCCESS */}
-
+        {/* Success */}
         {success && (
-          <div className="mb-5 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-600">
+          <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-600">
             {success}
           </div>
         )}
 
-        {/* FORM */}
-
+        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="space-y-5"
         >
 
-          {/* NAME */}
-
+          {/* Name */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Name
+            <label
+              htmlFor="name"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
+              Full Name
             </label>
 
             <input
+              id="name"
               type="text"
               name="name"
               value={form.name}
               onChange={handleChange}
               placeholder="Enter your name"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
-          {/* EMAIL */}
-
+          {/* Email */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Email
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
+              Email Address
             </label>
 
             <input
+              id="email"
               type="email"
               name="email"
               value={form.email}
               onChange={handleChange}
               placeholder="Enter your email"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
-          {/* PASSWORD */}
-
+          {/* Password */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-semibold text-slate-700"
+            >
               Password
             </label>
 
             <input
+              id="password"
               type="password"
               name="password"
               value={form.password}
               onChange={handleChange}
-              placeholder="Minimum 8 characters"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+              placeholder="Enter your password"
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
-          {/* CONFIRM PASSWORD */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Confirm Password
-            </label>
-
-            <input
-              type="password"
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm password"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
-            />
-          </div>
-
-          {/* SUBMIT */}
-
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
               ? "Creating Account..."
-              : "Register"}
+              : "Create Account"}
           </button>
 
         </form>
 
-        {/* LOGIN */}
+        {/* Login */}
+        <div className="mt-6 border-t border-slate-100 pt-6 text-center">
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Already have an account?{" "}
+          <p className="text-sm text-slate-500">
+            Already have an account?{" "}
 
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/login")
-            }
-            className="font-semibold text-blue-600 hover:underline"
-          >
-            Login
-          </button>
-        </p>
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              Login
+            </button>
+          </p>
+
+        </div>
 
       </div>
+
     </main>
   );
 }

@@ -1,66 +1,69 @@
-import api from "@/lib/api";
+"use client";
 
-// ==========================================
-// GET LIBRARIAN DASHBOARD
-// ==========================================
+import api from "../lib/api";
 
-export const getLibrarianDashboard = async () => {
-  return await api("/librarians/dashboard", {
-    method: "GET",
-  });
+// Get all librarians
+export const getLibrarians = async () => {
+  const response = await api.get("/librarians");
+
+  return response.data;
 };
 
-// ==========================================
-// GET ALL LIBRARIANS
-// ==========================================
+// Get librarian by ID
+export const getLibrarianById = async (librarianId) => {
+  const response = await api.get(`/librarians/${librarianId}`);
 
-export const getAllLibrarians = async () => {
-  return await api("/librarians", {
-    method: "GET",
-  });
+  return response.data;
 };
 
-// ==========================================
-// GET LIBRARIAN BY ID
-// ==========================================
+// Create librarian
+export const createLibrarian = async (data) => {
+  const response = await api.post("/librarians", data);
 
-export const getLibrarianById = async (id) => {
-  return await api(`/librarians/${id}`, {
-    method: "GET",
-  });
+  return response.data;
 };
 
-// ==========================================
-// UPDATE LIBRARIAN
-// ==========================================
+// Update librarian
+export const updateLibrarian = async (librarianId, data) => {
+  const response = await api.put(
+    `/librarians/${librarianId}`,
+    data
+  );
 
-export const updateLibrarian = async (id, data) => {
-  return await api(`/librarians/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+  return response.data;
 };
 
-// ==========================================
-// UPDATE PERMISSIONS
-// ==========================================
+export const updateMyLibrarianProfile = async (data) => {
+  const response = await api.put("/librarians/profile", data);
 
+  return response.data;
+};
+
+// Delete librarian
+export const deleteLibrarian = async (librarianId) => {
+  const response = await api.delete(
+    `/librarians/${librarianId}`
+  );
+
+  return response.data;
+};
+
+// Update librarian permissions
 export const updateLibrarianPermissions = async (
-  id,
+  librarianId,
   permissions
 ) => {
-  return await api(`/librarians/${id}/permissions`, {
-    method: "PATCH",
-    body: JSON.stringify(permissions),
-  });
+  const response = await api.put(
+    `/librarians/${librarianId}/permissions`,
+    permissions
+  );
+
+  return response.data;
 };
 
-// ==========================================
-// DELETE LIBRARIAN
-// ==========================================
+// Get librarian dashboard
+export const getLibrarianDashboard = async () => {
+  const response = await api.get("/librarians/dashboard");
 
-export const deleteLibrarian = async (id) => {
-  return await api(`/librarians/${id}`, {
-    method: "DELETE",
-  });
+  return response.data;
 };

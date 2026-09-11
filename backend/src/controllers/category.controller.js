@@ -1,62 +1,50 @@
 "use strict";
 
-const categoryService = require("../services/category.service");
+const {
+  getCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} = require("../services/category");
 
 // ======================================================
 // GET ALL CATEGORIES
 // ======================================================
 
-const getCategories = async (req, res) => {
+const getAll = async (req, res, next) => {
   try {
-    const categories =
-      await categoryService.getCategories();
+    const result = await getCategories();
 
     return res.status(200).json({
       success: true,
-      message: "Categories fetched successfully",
-      data: {
-        categories,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// GET SINGLE CATEGORY
+// GET CATEGORY BY ID
 // ======================================================
 
-const getCategoryById = async (req, res) => {
+const getById = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const categoryId =
+      req.params.categoryId ||
+      req.params.id;
 
-    const category =
-      await categoryService.getCategoryById(id);
+    const result = await getCategoryById(
+      categoryId
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Category fetched successfully",
-      data: {
-        category,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -64,29 +52,25 @@ const getCategoryById = async (req, res) => {
 // CREATE CATEGORY
 // ======================================================
 
-const createCategory = async (req, res) => {
+const create = async (req, res, next) => {
   try {
-    const category =
-      await categoryService.createCategory(
-        req.body
-      );
+    const {
+      name,
+      description,
+    } = req.body;
+
+    const result = await createCategory({
+      name,
+      description,
+    });
 
     return res.status(201).json({
       success: true,
       message: "Category created successfully",
-      data: {
-        category,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -94,32 +78,24 @@ const createCategory = async (req, res) => {
 // UPDATE CATEGORY
 // ======================================================
 
-const updateCategory = async (req, res) => {
+const update = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const categoryId =
+      req.params.categoryId ||
+      req.params.id;
 
-    const category =
-      await categoryService.updateCategory(
-        id,
-        req.body
-      );
+    const result = await updateCategory(
+      categoryId,
+      req.body
+    );
 
     return res.status(200).json({
       success: true,
       message: "Category updated successfully",
-      data: {
-        category,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -127,38 +103,30 @@ const updateCategory = async (req, res) => {
 // DELETE CATEGORY
 // ======================================================
 
-const deleteCategory = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const categoryId =
+      req.params.categoryId ||
+      req.params.id;
 
-    const result =
-      await categoryService.deleteCategory(id);
+    const result = await deleteCategory(
+      categoryId
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Category deleted successfully",
+      message: result.message,
       data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
-// ======================================================
-// EXPORTS
-// ======================================================
-
 module.exports = {
-  getCategories,
-  getCategoryById,
-  createCategory,
-  updateCategory,
-  deleteCategory,
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
 };

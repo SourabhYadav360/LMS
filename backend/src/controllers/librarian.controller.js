@@ -1,117 +1,172 @@
-const librarianService = require("../services/librarian.service");
+"use strict";
 
-// =====================================================
-// CREATE LIBRARIAN
-// =====================================================
+const {
+  createLibrarian,
+  getAllLibrarians,
+  getLibrarianById,
+  updateLibrarian,
+  updateOwnLibrarianProfile,
+  updateLibrarianPermissions,
+  deleteLibrarian,
+  getDashboard,
+} = require("../services/librarian");
 
-const createLibrarian = async (
+// ======================================================
+// LIBRARIAN DASHBOARD
+// ======================================================
+
+const getLibrarianDashboard = async (
   req,
   res,
   next
 ) => {
   try {
-    const librarian =
-      await librarianService.createLibrarian(
-        req.body
-      );
+    const result = await getDashboard(
+      req.user.userId
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// CREATE LIBRARIAN
+// ======================================================
+
+const create = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+    } = req.body;
+
+    const result = await createLibrarian({
+      name,
+      email,
+      password,
+    });
 
     return res.status(201).json({
       success: true,
-      message:
-        "Librarian created successfully",
-      data: librarian,
+      message: "Librarian created successfully",
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
+// ======================================================
 // GET ALL LIBRARIANS
-// =====================================================
+// ======================================================
 
-const getAllLibrarians = async (
-  req,
-  res,
-  next
-) => {
+const getAll = async (req, res, next) => {
   try {
-    const librarians =
-      await librarianService.getAllLibrarians();
+    const result = await getAllLibrarians();
 
     return res.status(200).json({
       success: true,
-      data: librarians,
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
+// ======================================================
 // GET LIBRARIAN BY ID
-// =====================================================
+// ======================================================
 
-const getLibrarianById = async (
-  req,
-  res,
-  next
-) => {
+const getById = async (req, res, next) => {
   try {
-    const librarian =
-      await librarianService.getLibrarianById(
-        req.params.id
-      );
+    const librarianId =
+      req.params.librarianId ||
+      req.params.id;
+
+    const result = await getLibrarianById(
+      librarianId
+    );
 
     return res.status(200).json({
       success: true,
-      data: librarian,
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
+// ======================================================
 // UPDATE LIBRARIAN
-// =====================================================
+// ======================================================
 
-const updateLibrarian = async (
-  req,
-  res,
-  next
-) => {
+const update = async (req, res, next) => {
   try {
-    const librarian =
-      await librarianService.updateLibrarian(
-        req.params.id,
-        req.body
-      );
+    const librarianId =
+      req.params.librarianId ||
+      req.params.id;
+
+    const result = await updateLibrarian(
+      librarianId,
+      req.body
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Librarian updated successfully",
-      data: librarian,
+      message: "Librarian updated successfully",
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
-// UPDATE PERMISSIONS
-// =====================================================
+const updateOwnProfile = async (req, res, next) => {
+  try {
+    if (req.user.role !== "LIBRARIAN") {
+      const error = new Error("Only librarians can update this profile");
+      error.statusCode = 403;
+      throw error;
+    }
 
-const updateLibrarianPermissions = async (
+    const result = await updateOwnLibrarianProfile(
+      req.user.userId,
+      req.body
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// UPDATE LIBRARIAN PERMISSIONS
+// ======================================================
+
+const updatePermissions = async (
   req,
   res,
   next
 ) => {
   try {
-    const librarian =
-      await librarianService.updateLibrarianPermissions(
-        req.params.id,
+    const librarianId =
+      req.params.librarianId ||
+      req.params.id;
+
+    const result =
+      await updateLibrarianPermissions(
+        librarianId,
         req.body
       );
 
@@ -119,46 +174,44 @@ const updateLibrarianPermissions = async (
       success: true,
       message:
         "Librarian permissions updated successfully",
-      data: librarian,
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
+// ======================================================
 // DELETE LIBRARIAN
-// =====================================================
+// ======================================================
 
-const deleteLibrarian = async (
-  req,
-  res,
-  next
-) => {
+const remove = async (req, res, next) => {
   try {
-    const result =
-      await librarianService.deleteLibrarian(
-        req.params.id
-      );
+    const librarianId =
+      req.params.librarianId ||
+      req.params.id;
+
+    const result = await deleteLibrarian(
+      librarianId
+    );
 
     return res.status(200).json({
       success: true,
-      ...result,
+      message: result.message,
+      data: result,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// =====================================================
-// EXPORT
-// =====================================================
-
 module.exports = {
-  createLibrarian,
-  getAllLibrarians,
-  getLibrarianById,
-  updateLibrarian,
-  updateLibrarianPermissions,
-  deleteLibrarian,
+  getLibrarianDashboard,
+  create,
+  getAll,
+  getById,
+  update,
+  updateOwnProfile,
+  updatePermissions,
+  remove,
 };

@@ -1,57 +1,51 @@
-import api from "@/lib/api";
+"use client";
 
-// ==========================================
-// GET ALL MEMBERS
-// ==========================================
+import api from "../lib/api";
 
+// Get all members
 export const getMembers = async () => {
-  return await api("/members", {
-    method: "GET",
-  });
+  const response = await api.get("/members");
+
+  return response.data;
 };
 
-// ==========================================
-// GET MEMBER BY ID
-// ==========================================
+// Get member by ID
+export const getMemberById = async (memberId) => {
+  const response = await api.get(`/members/${memberId}`);
 
-export const getMemberById = async (id) => {
-  return await api(`/members/${id}`, {
-    method: "GET",
-  });
+  return response.data;
 };
 
-// ==========================================
-// CREATE MEMBER
-// ==========================================
-
+// Create member
 export const createMember = async (data) => {
-  return await api("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({
-      name: data.name,
-      email: data.email,
-      password: data.password,
-    }),
-  });
+  const response = await api.post("/members", data);
+
+  return response.data;
 };
 
-// ==========================================
-// UPDATE MEMBER
-// ==========================================
+// Update member
+export const updateMember = async (memberId, data) => {
+  const response = await api.put(`/members/${memberId}`, data);
 
-export const updateMember = async (id, data) => {
-  return await api(`/members/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+  return response.data;
 };
 
-// ==========================================
-// DELETE MEMBER
-// ==========================================
+export const updateMyMemberProfile = async (data) => {
+  const response = await api.put("/members/profile", data);
 
-export const deleteMember = async (id) => {
-  return await api(`/members/${id}`, {
-    method: "DELETE",
-  });
+  return response.data;
+};
+
+// Delete member
+export const deleteMember = async (memberId) => {
+  const response = await api.delete(`/members/${memberId}`);
+
+  return response.data;
+};
+
+// Get member dashboard
+export const getMemberDashboard = async () => {
+  const response = await api.get("/members/dashboard");
+
+  return response.data;
 };

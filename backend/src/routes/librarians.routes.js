@@ -3,101 +3,104 @@
 const express = require("express");
 
 const {
-  createLibrarian,
-  getAllLibrarians,
-  getLibrarianById,
-  updateLibrarian,
-  updateLibrarianPermissions,
-  deleteLibrarian,
+  getLibrarianDashboard,
+  create,
+  getAll,
+  getById,
+  update,
+  updateOwnProfile,
+  updatePermissions,
+  remove,
 } = require("../controllers/librarian.controller");
 
+const { authenticate } = require("../middlewares/auth.middleware");
 const {
-  getDashboard,
-} = require("../controllers/librarianDashboard.controller");
-
-const authenticate = require("../middlewares/auth.middleware");
-const authorize = require("../middlewares/authorize.middleware");
-const requirePermission = require("../middlewares/permission.middleware");
+  requirePermission,
+} = require("../middlewares/permission.middleware");
 
 const router = express.Router();
 
-// =====================================================
-// SUPER ADMIN - CREATE LIBRARIAN
-// =====================================================
-
-router.post(
-  "/",
-  authenticate,
-  authorize("SUPER_ADMIN"),
-  createLibrarian
-);
-
-// =====================================================
-// SUPER ADMIN - GET ALL LIBRARIANS
-// =====================================================
-
-router.get(
-  "/",
-  authenticate,
-  authorize("SUPER_ADMIN"),
-  getAllLibrarians
-);
-
-// =====================================================
+// ======================================================
 // LIBRARIAN DASHBOARD
-// IMPORTANT: YE /:id SE PEHLE HONA CHAHIYE
-// =====================================================
+// ======================================================
 
 router.get(
   "/dashboard",
   authenticate,
-  authorize("LIBRARIAN"),
   requirePermission("dashboardView"),
-  getDashboard
+  getLibrarianDashboard
 );
 
-// =====================================================
-// SUPER ADMIN - GET LIBRARIAN
-// =====================================================
+// ======================================================
+// CREATE LIBRARIAN
+// ======================================================
+
+router.post(
+  "/",
+  authenticate,
+  requirePermission("dashboardView"),
+  create
+);
+
+// ======================================================
+// GET ALL LIBRARIANS
+// ======================================================
 
 router.get(
-  "/:id",
+  "/",
   authenticate,
-  authorize("SUPER_ADMIN"),
-  getLibrarianById
+  requirePermission("dashboardView"),
+  getAll
 );
-
-// =====================================================
-// SUPER ADMIN - UPDATE LIBRARIAN
-// =====================================================
 
 router.put(
-  "/:id",
+  "/profile",
   authenticate,
-  authorize("SUPER_ADMIN"),
-  updateLibrarian
+  updateOwnProfile
 );
 
-// =====================================================
-// SUPER ADMIN - UPDATE PERMISSIONS
-// =====================================================
+// ======================================================
+// GET LIBRARIAN BY ID
+// ======================================================
 
-router.patch(
-  "/:id/permissions",
+router.get(
+  "/:librarianId",
   authenticate,
-  authorize("SUPER_ADMIN"),
-  updateLibrarianPermissions
+  requirePermission("dashboardView"),
+  getById
 );
 
-// =====================================================
-// SUPER ADMIN - DELETE LIBRARIAN
-// =====================================================
+// ======================================================
+// UPDATE LIBRARIAN
+// ======================================================
+
+router.put(
+  "/:librarianId",
+  authenticate,
+  requirePermission("dashboardView"),
+  update
+);
+
+// ======================================================
+// UPDATE LIBRARIAN PERMISSIONS
+// ======================================================
+
+router.put(
+  "/:librarianId/permissions",
+  authenticate,
+  requirePermission("dashboardView"),
+  updatePermissions
+);
+
+// ======================================================
+// DELETE LIBRARIAN
+// ======================================================
 
 router.delete(
-  "/:id",
+  "/:librarianId",
   authenticate,
-  authorize("SUPER_ADMIN"),
-  deleteLibrarian
+  requirePermission("dashboardView"),
+  remove
 );
 
 module.exports = router;

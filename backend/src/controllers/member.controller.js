@@ -1,32 +1,48 @@
 "use strict";
 
-const memberService = require("../services/member.service");
+const {
+  getMemberDashboard,
+  getMembers,
+  getMemberById,
+  createMember,
+  updateMember,
+  updateOwnMemberProfile,
+  deleteMember,
+} = require("../services/member");
+
+// ======================================================
+// GET MEMBER DASHBOARD
+// ======================================================
+
+const getDashboard = async (req, res, next) => {
+  try {
+    const result = await getMemberDashboard(
+      req.user.userId
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // ======================================================
 // GET ALL MEMBERS
 // ======================================================
 
-const getMembers = async (req, res) => {
+const getAll = async (req, res, next) => {
   try {
-    const members =
-      await memberService.getMembers();
+    const result = await getMembers();
 
     return res.status(200).json({
       success: true,
-      message: "Members fetched successfully",
-      data: {
-        members,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -34,29 +50,50 @@ const getMembers = async (req, res) => {
 // GET MEMBER BY ID
 // ======================================================
 
-const getMemberById = async (req, res) => {
+const getById = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const memberId =
+      req.params.memberId ||
+      req.params.id;
 
-    const member =
-      await memberService.getMemberById(id);
+    const result = await getMemberById(
+      memberId
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Member fetched successfully",
-      data: {
-        member,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
+    next(error);
+  }
+};
+
+// ======================================================
+// CREATE MEMBER
+// ======================================================
+
+const create = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+    } = req.body;
+
+    const result = await createMember({
+      name,
+      email,
+      password,
     });
+
+    return res.status(201).json({
+      success: true,
+      message: "Member created successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -64,32 +101,57 @@ const getMemberById = async (req, res) => {
 // UPDATE MEMBER
 // ======================================================
 
-const updateMember = async (req, res) => {
+const update = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const memberId =
+      req.params.memberId ||
+      req.params.id;
 
-    const member =
-      await memberService.updateMember(
-        id,
-        req.body
-      );
+    const {
+      name,
+      email,
+      status,
+    } = req.body;
+
+    const result = await updateMember(
+      memberId,
+      {
+        name,
+        email,
+        status,
+      }
+    );
 
     return res.status(200).json({
       success: true,
       message: "Member updated successfully",
-      data: {
-        member,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
+    next(error);
+  }
+};
+
+const updateOwnProfile = async (req, res, next) => {
+  try {
+    if (req.user.role !== "MEMBER") {
+      const error = new Error("Only members can update this profile");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const result = await updateOwnMemberProfile(
+      req.user.userId,
+      req.body
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: result,
     });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -97,37 +159,32 @@ const updateMember = async (req, res) => {
 // DELETE MEMBER
 // ======================================================
 
-const deleteMember = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const memberId =
+      req.params.memberId ||
+      req.params.id;
 
-    const result =
-      await memberService.deleteMember(id);
+    const result = await deleteMember(
+      memberId
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Member deleted successfully",
+      message: result.message,
       data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
-// ======================================================
-// EXPORTS
-// ======================================================
-
 module.exports = {
-  getMembers,
-  getMemberById,
-  updateMember,
-  deleteMember,
+  getDashboard,
+  getAll,
+  getById,
+  create,
+  update,
+  updateOwnProfile,
+  remove,
 };

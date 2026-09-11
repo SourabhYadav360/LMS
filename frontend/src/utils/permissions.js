@@ -8,5 +8,5 @@ export const hasPermission = (user, permission) => {
     return true;
   }
 
-  return user[permission] === true;
+  return user[permission] === true || user.permissions?.[permission] === true;
 };

@@ -1,54 +1,48 @@
 "use strict";
 
-const bookService = require("../services/book.service");
+const {
+  getBooks,
+  getBookById,
+  createBook,
+  updateBook,
+  deleteBook,
+} = require("../services/book");
 
 // ======================================================
 // GET ALL BOOKS
 // ======================================================
 
-const getBooks = async (req, res) => {
+const getAll = async (req, res, next) => {
   try {
-    const books = await bookService.getBooks();
+    const result = await getBooks();
 
     return res.status(200).json({
       success: true,
-      message: "Books fetched successfully",
-      data: {
-        books,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message:
-        error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// GET SINGLE BOOK
+// GET BOOK BY ID
 // ======================================================
 
-const getBookById = async (req, res) => {
+const getById = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const bookId =
+      req.params.bookId ||
+      req.params.id;
 
-    const book = await bookService.getBookById(id);
+    const result = await getBookById(bookId);
 
     return res.status(200).json({
       success: true,
-      message: "Book fetched successfully",
-      data: {
-        book,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message:
-        error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -56,25 +50,33 @@ const getBookById = async (req, res) => {
 // CREATE BOOK
 // ======================================================
 
-const createBook = async (req, res) => {
+const create = async (req, res, next) => {
   try {
-    const book = await bookService.createBook(
-      req.body
-    );
+    const {
+      title,
+      author,
+      isbn,
+      description,
+      totalCopies,
+      categoryId,
+    } = req.body;
+
+    const result = await createBook({
+      title,
+      author,
+      isbn,
+      description,
+      totalCopies,
+      categoryId,
+    });
 
     return res.status(201).json({
       success: true,
       message: "Book created successfully",
-      data: {
-        book,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message:
-        error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -82,28 +84,24 @@ const createBook = async (req, res) => {
 // UPDATE BOOK
 // ======================================================
 
-const updateBook = async (req, res) => {
+const update = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const bookId =
+      req.params.bookId ||
+      req.params.id;
 
-    const book = await bookService.updateBook(
-      id,
+    const result = await updateBook(
+      bookId,
       req.body
     );
 
     return res.status(200).json({
       success: true,
       message: "Book updated successfully",
-      data: {
-        book,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message:
-        error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -111,34 +109,28 @@ const updateBook = async (req, res) => {
 // DELETE BOOK
 // ======================================================
 
-const deleteBook = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const bookId =
+      req.params.bookId ||
+      req.params.id;
 
-    const result = await bookService.deleteBook(id);
+    const result = await deleteBook(bookId);
 
     return res.status(200).json({
       success: true,
-      message: "Book deleted successfully",
+      message: result.message,
       data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message:
-        error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
-// ======================================================
-// EXPORTS
-// ======================================================
-
 module.exports = {
-  getBooks,
-  getBookById,
-  createBook,
-  updateBook,
-  deleteBook,
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
 };

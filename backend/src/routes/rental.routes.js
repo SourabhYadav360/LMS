@@ -2,10 +2,18 @@
 
 const express = require("express");
 
-const rentalController = require("../controllers/rental.controller");
+const {
+  rentBook,
+  getMyRentals,
+  getRentalById,
+  returnBook,
+  getAllRentals,
+} = require("../controllers/rental.controller");
 
-const authenticate = require("../middlewares/auth.middleware");
-const authorize = require("../middlewares/authorize.middleware");
+const { authenticate } = require("../middlewares/auth.middleware");
+const {
+  requirePermission,
+} = require("../middlewares/permission.middleware");
 
 const router = express.Router();
 
@@ -16,19 +24,8 @@ const router = express.Router();
 router.post(
   "/",
   authenticate,
-  authorize("MEMBER"),
-  rentalController.rentBook
-);
-
-// ======================================================
-// ADMIN + LIBRARIAN → GET ALL RENTALS
-// ======================================================
-
-router.get(
-  "/",
-  authenticate,
-  authorize("SUPER_ADMIN", "LIBRARIAN"),
-  rentalController.getAllRentals
+  requirePermission("rentalCreate"),
+  rentBook
 );
 
 // ======================================================
@@ -36,10 +33,10 @@ router.get(
 // ======================================================
 
 router.get(
-  "/my-rentals",
+  "/my",
   authenticate,
-  authorize("MEMBER"),
-  rentalController.getMyRentals
+  requirePermission("rentalView"),
+  getMyRentals
 );
 
 // ======================================================
@@ -49,8 +46,8 @@ router.get(
 router.get(
   "/:rentalId",
   authenticate,
-  authorize("MEMBER"),
-  rentalController.getRentalById
+  requirePermission("rentalView"),
+  getRentalById
 );
 
 // ======================================================
@@ -60,8 +57,19 @@ router.get(
 router.post(
   "/:rentalId/return",
   authenticate,
-  authorize("MEMBER"),
-  rentalController.returnBook
+  requirePermission("rentalReturn"),
+  returnBook
+);
+
+// ======================================================
+// ADMIN / LIBRARIAN → GET ALL RENTALS
+// ======================================================
+
+router.get(
+  "/",
+  authenticate,
+  requirePermission("rentalView"),
+  getAllRentals
 );
 
 module.exports = router;

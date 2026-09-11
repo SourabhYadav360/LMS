@@ -2,21 +2,33 @@
 
 const express = require("express");
 
-const memberController = require("../controllers/member.controller");
+const {
+  getDashboard,
+  getAll,
+  getById,
+  create,
+  update,
+  updateOwnProfile,
+  remove,
+} = require("../controllers/member.controller");
 
-const authenticate = require("../middlewares/auth.middleware");
-
-const authorize = require("../middlewares/authorize.middleware");
-
-const requirePermission = require("../middlewares/permission.middleware");
+const { authenticate } = require("../middlewares/auth.middleware");
+const {
+  requirePermission,
+} = require("../middlewares/permission.middleware");
 
 const router = express.Router();
 
 // ======================================================
-// AUTHENTICATION
+// MEMBER DASHBOARD
 // ======================================================
 
-router.use(authenticate);
+router.get(
+  "/dashboard",
+  authenticate,
+  requirePermission("dashboardView"),
+  getDashboard
+);
 
 // ======================================================
 // GET ALL MEMBERS
@@ -24,15 +36,9 @@ router.use(authenticate);
 
 router.get(
   "/",
-
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-
+  authenticate,
   requirePermission("memberView"),
-
-  memberController.getMembers
+  getAll
 );
 
 // ======================================================
@@ -40,16 +46,27 @@ router.get(
 // ======================================================
 
 router.get(
-  "/:id",
-
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-
+  "/:memberId",
+  authenticate,
   requirePermission("memberView"),
+  getById
+);
 
-  memberController.getMemberById
+// ======================================================
+// CREATE MEMBER
+// ======================================================
+
+router.post(
+  "/",
+  authenticate,
+  requirePermission("memberCreate"),
+  create
+);
+
+router.put(
+  "/profile",
+  authenticate,
+  updateOwnProfile
 );
 
 // ======================================================
@@ -57,16 +74,10 @@ router.get(
 // ======================================================
 
 router.put(
-  "/:id",
-
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-
+  "/:memberId",
+  authenticate,
   requirePermission("memberUpdate"),
-
-  memberController.updateMember
+  update
 );
 
 // ======================================================
@@ -74,20 +85,10 @@ router.put(
 // ======================================================
 
 router.delete(
-  "/:id",
-
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-
+  "/:memberId",
+  authenticate,
   requirePermission("memberDelete"),
-
-  memberController.deleteMember
+  remove
 );
-
-// ======================================================
-// EXPORT
-// ======================================================
 
 module.exports = router;

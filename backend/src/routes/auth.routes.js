@@ -2,48 +2,32 @@
 
 const express = require("express");
 
-const authController = require("../controllers/auth.controller");
+const {
+  register,
+  loginUser,
+  getCurrentUser,
+} = require("../controllers/auth.controller");
 
-const authenticate = require("../middlewares/auth.middleware");
+const { authenticate } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
 // ======================================================
-// MEMBER REGISTER
+// REGISTER
 // ======================================================
 
-router.post(
-  "/register",
-  authController.registerMember
-);
+router.post("/register", register);
 
 // ======================================================
-// SINGLE LOGIN
-// ADMIN + LIBRARIAN + MEMBER
+// LOGIN
 // ======================================================
 
-router.post(
-  "/login",
-  authController.login
-);
+router.post("/login", loginUser);
 
 // ======================================================
 // CURRENT USER
 // ======================================================
 
-router.get(
-  "/me",
-  authenticate,
-  authController.getMe
-);
-
-// ======================================================
-// LOGOUT
-// ======================================================
-
-router.post(
-  "/logout",
-  authController.logout
-);
+router.get("/me", authenticate, getCurrentUser);
 
 module.exports = router;

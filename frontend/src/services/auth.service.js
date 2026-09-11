@@ -1,54 +1,24 @@
-import api from "@/lib/api";
+"use client";
 
-// ==========================================
-// LOGIN
-// ==========================================
+import api from "../lib/api";
 
-export const login = async (email, password) => {
-  return await api("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({
-      email,
-      password,
-    }),
-  });
+// Register Member
+export const registerMember = async (data) => {
+  const response = await api.post("/auth/register", data);
+
+  return response.data;
 };
 
-// ==========================================
-// REGISTER MEMBER
-// ==========================================
+// Login
+export const login = async (data) => {
+  const response = await api.post("/auth/login", data);
 
-export const registerMember = async (
-  name,
-  email,
-  password
-) => {
-  return await api("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      email,
-      password,
-    }),
-  });
+  return response.data;
 };
 
-// ==========================================
-// GET CURRENT USER
-// ==========================================
-
+// Get Current User
 export const getMe = async () => {
-  return await api("/auth/me", {
-    method: "GET",
-  });
-};
+  const response = await api.get("/auth/me");
 
-// ==========================================
-// LOGOUT
-// ==========================================
-
-export const logout = async () => {
-  return await api("/auth/logout", {
-    method: "POST",
-  });
+  return response.data;
 };

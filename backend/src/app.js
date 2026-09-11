@@ -4,6 +4,11 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
+// ======================================================
+// ROUTES
+// ======================================================
+
+const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const categoryRoutes = require("./routes/category.routes");
 const bookRoutes = require("./routes/book.routes");
@@ -12,6 +17,7 @@ const rentalRoutes = require("./routes/rental.routes");
 const librarianRoutes = require("./routes/librarians.routes");
 const memberRoutes = require("./routes/member.routes");
 const reservationRoutes = require("./routes/reservation.routes");
+const reportRoutes = require("./routes/report.routes");
 
 const app = express();
 
@@ -50,7 +56,7 @@ app.use(cookieParser());
 
 app.use(
   "/api/auth",
-  require("./routes/auth.routes")
+  authRoutes
 );
 
 // ======================================================
@@ -98,6 +104,10 @@ app.use(
   rentalRoutes
 );
 
+// ======================================================
+// RESERVATION ROUTES
+// ======================================================
+
 app.use(
   "/api/reservations",
   reservationRoutes
@@ -112,20 +122,47 @@ app.use(
   librarianRoutes
 );
 
-app.use("/api/members", memberRoutes);
+// ======================================================
+// MEMBER ROUTES
+// ======================================================
+
+app.use(
+  "/api/members",
+  memberRoutes
+);
 
 // ======================================================
-// TEST ROUTE
+// REPORT ROUTES
+// ======================================================
+
+app.use(
+  "/api/reports",
+  reportRoutes
+);
+
+// ======================================================
+// ROOT / TEST ROUTE
 // ======================================================
 
 app.get("/", (req, res) => {
-  res.json({
+  return res.status(200).json({
     success: true,
     message: "Library API is running",
   });
 });
 
+// ======================================================
+// ERROR HANDLER
+// ======================================================
 
+app.use((error, req, res, next) => {
+  const statusCode = error.statusCode || 500;
+
+  return res.status(statusCode).json({
+    success: false,
+    message: error.message || "Internal server error",
+  });
+});
 
 // ======================================================
 // EXPORT

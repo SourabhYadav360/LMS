@@ -1,225 +1,154 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import {
   getAllRentals,
 } from "@/services/rental.service";
 
-import RentalTable from "@/components/rentals/RentalTable";
-import RentalDetails from "@/components/rentals/RentalDetails";
+export default function RentalsPage() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("ALL");
+  const [error, setError] = useState("");
 
-const RentalsPage = () => {
-  const [rentals, setRentals] = useState([]);
-
-  const [selectedRental, setSelectedRental] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  // ======================================================
-  // GET ALL RENTALS
-  // ======================================================
-
-  const fetchRentals = async () => {
+  const load = async () => {
     try {
       setLoading(true);
-      setError("");
 
-      const response =
-        await getAllRentals();
+      const response = await getAllRentals();
 
-      setRentals(
-        response?.data?.rentals || []
-      );
-    } catch (error) {
-      console.error(
-        "Get rentals error:",
-        error
-      );
-
+      setItems(response.data?.rentals || []);
+    } catch (e) {
       setError(
-        error?.response?.data?.message ||
-          "Failed to fetch rentals"
+        e.response?.data?.message ||
+          "Unable to load rentals."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // ======================================================
-  // INITIAL LOAD
-  // ======================================================
-
   useEffect(() => {
-    fetchRentals();
+    const timer = window.setTimeout(load, 0);
+
+    return () =>
+      window.clearTimeout(timer);
   }, []);
 
-  // ======================================================
-  // LOADING
-  // ======================================================
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-gray-500">
-          Loading rentals...
-        </p>
-      </div>
-    );
-  }
-
-  // ======================================================
-  // PAGE
-  // ======================================================
+  const shown =
+    status === "ALL"
+      ? items
+      : items.filter(
+          (item) => item.status === status
+        );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+          Operations
+        </p>
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
+        <h1 className="mt-2 text-3xl font-bold">
+          Rentals
+        </h1>
 
-      <div className="flex items-center justify-between">
+        <p className="mt-2 text-sm text-slate-500">
+          Track active, overdue and returned books.
+        </p>
+      </div>
 
-        <div>
-          <h1 className="text-2xl font-semibold">
-            Rentals
-          </h1>
-
-          <p className="mt-1 text-sm text-gray-500">
-            View and manage book rental records
-          </p>
-        </div>
+      <div className="flex gap-3 rounded-xl border bg-white p-4">
+        <select
+          value={status}
+          onChange={(e) =>
+            setStatus(e.target.value)
+          }
+          className="rounded-lg border px-3 py-2 text-sm"
+        >
+          <option>ALL</option>
+          <option>ACTIVE</option>
+          <option>OVERDUE</option>
+          <option>RETURNED</option>
+        </select>
 
         <button
           type="button"
-          onClick={fetchRentals}
-          className="rounded-md border px-4 py-2 text-sm hover:bg-gray-100"
+          onClick={load}
+          className="rounded-lg border px-4 py-2 text-sm font-semibold"
         >
           Refresh
         </button>
-
       </div>
 
-      {/* ==================================================
-          ERROR
-      ================================================== */}
-
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-
-          <p className="text-sm text-red-600">
-            {error}
-          </p>
-
-          <button
-            type="button"
-            onClick={fetchRentals}
-            className="mt-2 text-sm font-medium text-red-700 underline"
-          >
-            Try Again
-          </button>
-
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      {/* ==================================================
-          STATS
-      ================================================== */}
+      {loading ? (
+        <State text="Loading rentals..." />
+      ) : shown.length === 0 ? (
+        <State text="No rentals found." />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border bg-white">
+          <table className="w-full min-w-[850px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="p-4">Book</th>
+                <th className="p-4">Member</th>
+                <th className="p-4">Rented</th>
+                <th className="p-4">Due</th>
+                <th className="p-4">Status</th>
+              </tr>
+            </thead>
 
-      {!error && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <tbody className="divide-y">
+              {shown.map((item) => (
+                <tr key={item.id}>
+                  <td className="p-4 font-semibold">
+                    {item.book?.title || item.bookId}
+                  </td>
 
-          {/* TOTAL */}
+                  <td className="p-4">
+                    {item.member?.name ||
+                      item.memberId}
+                  </td>
 
-          <div className="rounded-lg border bg-white p-5">
+                  <td className="p-4">
+                    {format(item.rentedAt)}
+                  </td>
 
-            <p className="text-sm text-gray-500">
-              Total Rentals
-            </p>
+                  <td className="p-4">
+                    {format(item.dueDate)}
+                  </td>
 
-            <p className="mt-2 text-2xl font-semibold">
-              {rentals.length}
-            </p>
+                  <td className="p-4">
+                    {item.status}
+                  </td>
 
-          </div>
-
-          {/* ACTIVE */}
-
-          <div className="rounded-lg border bg-white p-5">
-
-            <p className="text-sm text-gray-500">
-              Active Rentals
-            </p>
-
-            <p className="mt-2 text-2xl font-semibold">
-              {
-                rentals.filter(
-                  (rental) =>
-                    rental.status ===
-                    "ACTIVE"
-                ).length
-              }
-            </p>
-
-          </div>
-
-          {/* RETURNED */}
-
-          <div className="rounded-lg border bg-white p-5">
-
-            <p className="text-sm text-gray-500">
-              Returned
-            </p>
-
-            <p className="mt-2 text-2xl font-semibold">
-              {
-                rentals.filter(
-                  (rental) =>
-                    rental.status ===
-                    "RETURNED"
-                ).length
-              }
-            </p>
-
-          </div>
-
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-
-      {/* ==================================================
-          RENTAL TABLE
-      ================================================== */}
-
-      {!error && (
-        <RentalTable
-          rentals={rentals}
-          onView={(rental) => {
-            setSelectedRental(rental);
-          }}
-        />
-      )}
-
-      {/* ==================================================
-          RENTAL DETAILS MODAL
-      ================================================== */}
-
-      {selectedRental && (
-        <RentalDetails
-          rental={selectedRental}
-          onClose={() => {
-            setSelectedRental(null);
-          }}
-        />
-      )}
-
     </div>
   );
-};
+}
 
-export default RentalsPage;
+function format(value) {
+  return value
+    ? new Date(value).toLocaleDateString()
+    : "-";
+}
+
+function State({ text }) {
+  return (
+    <div className="flex min-h-56 items-center justify-center rounded-xl border bg-white text-sm text-slate-500">
+      {text}
+    </div>
+  );
+}

@@ -1,19 +1,25 @@
 "use strict";
 
-const rentalService = require("../services/rental.service");
+const {
+  rentBook: rentBookService,
+  getMyRentals: getMyRentalsService,
+  getRentalById: getRentalByIdService,
+  returnBook: returnBookService,
+  getAllRentals: getAllRentalsService,
+} = require("../services/rental");
 
 // ======================================================
 // MEMBER → RENT BOOK
 // ======================================================
 
-const rentBook = async (req, res) => {
+const rentBook = async (req, res, next) => {
   try {
     // JWT se logged-in member ki ID
     const memberId = req.user.userId;
 
     const { bookId, days, quantity } = req.body;
 
-    const result = await rentalService.rentBook({
+    const result = await rentBookService({
       memberId,
       bookId,
       days,
@@ -26,12 +32,7 @@ const rentBook = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error("Rent Book Error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -39,11 +40,11 @@ const rentBook = async (req, res) => {
 // MEMBER → GET MY RENTALS
 // ======================================================
 
-const getMyRentals = async (req, res) => {
+const getMyRentals = async (req, res, next) => {
   try {
     const memberId = req.user.userId;
 
-    const rentals = await rentalService.getMyRentals(
+    const rentals = await getMyRentalsService(
       memberId
     );
 
@@ -55,12 +56,7 @@ const getMyRentals = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get My Rentals Error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -68,13 +64,13 @@ const getMyRentals = async (req, res) => {
 // MEMBER → GET SINGLE RENTAL
 // ======================================================
 
-const getRentalById = async (req, res) => {
+const getRentalById = async (req, res, next) => {
   try {
     const memberId = req.user.userId;
 
     const { rentalId } = req.params;
 
-    const rental = await rentalService.getRentalById({
+    const rental = await getRentalByIdService({
       memberId,
       rentalId,
     });
@@ -87,12 +83,7 @@ const getRentalById = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get Rental Error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -100,13 +91,13 @@ const getRentalById = async (req, res) => {
 // MEMBER → RETURN BOOK
 // ======================================================
 
-const returnBook = async (req, res) => {
+const returnBook = async (req, res, next) => {
   try {
     const memberId = req.user.userId;
 
     const { rentalId } = req.params;
 
-    const result = await rentalService.returnBook({
+    const result = await returnBookService({
       memberId,
       rentalId,
     });
@@ -117,12 +108,7 @@ const returnBook = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error("Return Book Error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 
@@ -130,9 +116,9 @@ const returnBook = async (req, res) => {
 // ADMIN / LIBRARIAN → GET ALL RENTALS
 // ======================================================
 
-const getAllRentals = async (req, res) => {
+const getAllRentals = async (req, res, next) => {
   try {
-    const rentals = await rentalService.getAllRentals();
+    const rentals = await getAllRentalsService();
 
     return res.status(200).json({
       success: true,
@@ -142,12 +128,7 @@ const getAllRentals = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get All Rentals Error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || "Something went wrong",
-    });
+    next(error);
   }
 };
 

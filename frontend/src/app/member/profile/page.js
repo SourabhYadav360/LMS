@@ -1,214 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "react-toastify";
 
-import { getMe } from "@/services/auth.service";
+import { useAuth } from "@/context/AuthContext";
+import { updateMyMemberProfile } from "@/services/member.service";
 
-export default function MemberProfile() {
-  const router = useRouter();
+export default function MemberProfilePage() {
+	const { user, setUser } = useAuth();
+	const [form, setForm] = useState({ password: "" });
+	const [saving, setSaving] = useState(false);
 
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+	const handleSubmit = async (event) => {
+		event.preventDefault();
+		setSaving(true);
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
+		try {
+			const payload = {
+				name: form.name ?? user?.name ?? "",
+				email: form.email ?? user?.email ?? "",
+			};
+			if (form.password) payload.password = form.password;
+			const response = await updateMyMemberProfile(payload);
+			setUser(response.data);
+			setForm((current) => ({ ...current, password: "" }));
+			toast.success("Profile updated successfully");
+		} catch (error) {
+			toast.error(error.response?.data?.message || "Unable to update profile");
+		} finally {
+			setSaving(false);
+		}
+	};
 
-        const response = await getMe();
+	return (
+		<main className="mx-auto max-w-2xl space-y-6">
+			<div>
+				<p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">Account</p>
+				<h1 className="mt-2 text-3xl font-bold">My Profile</h1>
+			</div>
+			<form onSubmit={handleSubmit} className="space-y-5 rounded-xl border bg-white p-6">
+				<Field label="Name" name="name" value={form.name ?? user?.name ?? ""} onChange={setForm} />
+				<Field label="Email" name="email" type="email" value={form.email ?? user?.email ?? ""} onChange={setForm} />
+				<Field label="New password" name="password" type="password" value={form.password} onChange={setForm} />
+				<Info label="Role" value={user?.role} />
+				<Info label="Status" value={user?.status} />
+				<button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+					{saving ? "Saving..." : "Save changes"}
+				</button>
+			</form>
+		</main>
+	);
+}
 
-        const currentUser =
-          response?.data?.user;
+function Field({ label, name, type = "text", value, onChange }) {
+	return (
+		<label className="block text-sm font-semibold text-slate-700">
+			{label}
+			<input type={type} name={name} value={value} onChange={(event) => onChange((current) => ({ ...current, [name]: event.target.value }))} className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 font-normal outline-none focus:border-blue-500" />
+		</label>
+	);
+}
 
-        if (!currentUser) {
-          router.replace("/login");
-          return;
-        }
-
-        // Member only
-        if (currentUser.role !== "MEMBER") {
-          router.replace("/login");
-          return;
-        }
-
-        setUser(currentUser);
-      } catch (error) {
-        console.error(
-          "Profile error:",
-          error
-        );
-
-        setError(
-          error.message ||
-            "Failed to load profile"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [router]);
-
-  // ==========================================
-  // LOADING
-  // ==========================================
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading profile...</p>
-      </div>
-    );
-  }
-
-  // ==========================================
-  // ERROR
-  // ==========================================
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">
-          {error}
-        </p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  // ==========================================
-  // PROFILE
-  // ==========================================
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-
-      <div className="max-w-3xl mx-auto">
-
-        {/* Header */}
-
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
-            My Profile
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            View your account information
-          </p>
-        </div>
-
-        {/* Profile Card */}
-
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-
-          {/* Name */}
-
-          <div className="border-b pb-5 mb-5">
-            <p className="text-sm text-gray-500">
-              Name
-            </p>
-
-            <p className="text-lg font-semibold mt-1">
-              {user.name}
-            </p>
-          </div>
-
-          {/* Email */}
-
-          <div className="border-b pb-5 mb-5">
-            <p className="text-sm text-gray-500">
-              Email
-            </p>
-
-            <p className="text-lg font-semibold mt-1">
-              {user.email}
-            </p>
-          </div>
-
-          {/* Role */}
-
-          <div className="border-b pb-5 mb-5">
-            <p className="text-sm text-gray-500">
-              Role
-            </p>
-
-            <p className="text-lg font-semibold mt-1">
-              {user.role}
-            </p>
-          </div>
-
-          {/* Status */}
-
-          <div className="border-b pb-5 mb-5">
-            <p className="text-sm text-gray-500">
-              Status
-            </p>
-
-            <span
-              className="
-                inline-block
-                mt-2
-                px-3
-                py-1
-                rounded-full
-                text-sm
-                font-medium
-                bg-green-100
-                text-green-700
-              "
-            >
-              {user.status}
-            </span>
-          </div>
-
-          {/* Created At */}
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Member Since
-            </p>
-
-            <p className="text-lg font-semibold mt-1">
-              {user.createdAt
-                ? new Date(
-                    user.createdAt
-                  ).toLocaleDateString()
-                : "-"}
-            </p>
-          </div>
-
-        </div>
-
-        {/* Back Button */}
-
-        <button
-          onClick={() =>
-            router.push(
-              "/member/dashboard"
-            )
-          }
-          className="
-            mt-6
-            px-5
-            py-2.5
-            rounded-lg
-            bg-black
-            text-white
-            hover:opacity-90
-            transition
-          "
-        >
-          Back to Dashboard
-        </button>
-
-      </div>
-
-    </div>
-  );
+function Info({ label, value }) {
+	return <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 font-semibold text-slate-900">{value || "-"}</p></div>;
 }

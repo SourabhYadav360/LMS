@@ -1,55 +1,38 @@
 "use client";
 
-import api from "@/lib/api";
+import api from "../lib/api";
 
-// ======================================================
-// GET ALL BOOKS
-// ======================================================
-
+// Get all books
 export const getBooks = async () => {
-  return await api("/books", {
-    method: "GET",
-  });
+  const response = await api.get("/books");
+
+  return response.data;
 };
 
-// ======================================================
-// GET SINGLE BOOK
-// ======================================================
+// Get book by ID
+export const getBookById = async (bookId) => {
+  const response = await api.get(`/books/${bookId}`);
 
-export const getBookById = async (id) => {
-  return await api(`/books/${id}`, {
-    method: "GET",
-  });
+  return response.data;
 };
 
-// ======================================================
-// CREATE BOOK
-// ======================================================
-
+// Create book
 export const createBook = async (data) => {
-  return await api("/books", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  const response = await api.post("/books", data);
+
+  return response.data;
 };
 
-// ======================================================
-// UPDATE BOOK
-// ======================================================
+// Update book
+export const updateBook = async (bookId, data) => {
+  const response = await api.put(`/books/${bookId}`, data);
 
-export const updateBook = async (id, data) => {
-  return await api(`/books/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+  return response.data;
 };
 
-// ======================================================
-// DELETE BOOK
-// ======================================================
+// Delete book
+export const deleteBook = async (bookId) => {
+  const response = await api.delete(`/books/${bookId}`);
 
-export const deleteBook = async (id) => {
-  return await api(`/books/${id}`, {
-    method: "DELETE",
-  });
+  return response.data;
 };

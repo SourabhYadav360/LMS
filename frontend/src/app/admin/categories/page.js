@@ -1,648 +1,332 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 import {
-  getCategories,
-  createCategory,
-  updateCategory,
   deleteCategory,
-} from "@/services/admin.service";
+  getCategories,
+} from "@/services/category.service";
+import { useAuth } from "@/context/AuthContext";
+import { hasPermission } from "@/utils/permissions";
 
 export default function CategoriesPage() {
-  // ======================================================
-  // STATES
-  // ======================================================
+  const appRouter = useRouter();
+
+  const categoriesPath = usePathname().startsWith(
+    "/librarian/"
+  )
+    ? "/librarian/categories"
+    : "/admin/categories";
+
+  const router = {
+    ...appRouter,
+    push: (path) =>
+      appRouter.push(
+        path.replace(
+          "/admin/categories",
+          categoriesPath
+        )
+      ),
+  };
+
+  const { user } = useAuth();
 
   const [categories, setCategories] = useState([]);
-
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const [saving, setSaving] = useState(false);
-
-  const [deletingId, setDeletingId] =
-    useState(null);
-
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
 
-  const [success, setSuccess] = useState("");
+  const runWithPermission = (permission, action) => {
+    if (!hasPermission(user, permission)) {
+      toast.error(
+        "You do not have permission for this action"
+      );
+      return;
+    }
 
-  const [showModal, setShowModal] =
-    useState(false);
+    action();
+  };
 
-  const [editingCategory, setEditingCategory] =
-    useState(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-  });
-
-  // ======================================================
-  // FETCH CATEGORIES
-  // ======================================================
-
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response =
-        await getCategories();
-
-      console.log(
-        "Categories response:",
-        response
-      );
+      const response = await getCategories();
 
       setCategories(
-        response?.data?.categories || []
+        Array.isArray(response.data)
+          ? response.data
+          : []
       );
-    } catch (error) {
-      console.error(
-        "Get categories error:",
-        error
-      );
-
+    } catch (requestError) {
       setError(
-        error.message ||
-          "Failed to fetch categories"
+        requestError.response?.data?.message ||
+          "Unable to load categories."
       );
-
-      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // ======================================================
-  // INITIAL LOAD
-  // ======================================================
-
   useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  // ======================================================
-  // OPEN CREATE MODAL
-  // ======================================================
-
-  const openCreateModal = () => {
-    setEditingCategory(null);
-
-    setFormData({
-      name: "",
-      description: "",
-    });
-
-    setError("");
-    setSuccess("");
-
-    setShowModal(true);
-  };
-
-  // ======================================================
-  // OPEN EDIT MODAL
-  // ======================================================
-
-  const openEditModal = (category) => {
-    setEditingCategory(category);
-
-    setFormData({
-      name: category.name || "",
-      description:
-        category.description || "",
-    });
-
-    setError("");
-    setSuccess("");
-
-    setShowModal(true);
-  };
-
-  // ======================================================
-  // CLOSE MODAL
-  // ======================================================
-
-  const closeModal = () => {
-    if (saving) return;
-
-    setShowModal(false);
-
-    setEditingCategory(null);
-
-    setFormData({
-      name: "",
-      description: "",
-    });
-  };
-
-  // ======================================================
-  // FORM CHANGE
-  // ======================================================
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  // ======================================================
-  // CREATE / UPDATE
-  // ======================================================
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      // --------------------------------------------------
-      // BASIC FRONTEND VALIDATION
-      // --------------------------------------------------
-
-      if (!formData.name.trim()) {
-        setError(
-          "Category name is required"
-        );
-
-        return;
-      }
-
-      if (formData.name.trim().length < 2) {
-        setError(
-          "Category name must be at least 2 characters"
-        );
-
-        return;
-      }
-
-      // --------------------------------------------------
-      // UPDATE
-      // --------------------------------------------------
-
-      if (editingCategory) {
-        await updateCategory(
-          editingCategory.id,
-          {
-            name: formData.name.trim(),
-            description:
-              formData.description.trim(),
-          }
-        );
-
-        setSuccess(
-          "Category updated successfully"
-        );
-      }
-
-      // --------------------------------------------------
-      // CREATE
-      // --------------------------------------------------
-
-      else {
-        await createCategory({
-          name: formData.name.trim(),
-          description:
-            formData.description.trim(),
-        });
-
-        setSuccess(
-          "Category created successfully"
-        );
-      }
-
-      // --------------------------------------------------
-      // REFRESH
-      // --------------------------------------------------
-
-      await fetchCategories();
-
-      // --------------------------------------------------
-      // CLOSE
-      // --------------------------------------------------
-
-      setShowModal(false);
-
-      setEditingCategory(null);
-
-      setFormData({
-        name: "",
-        description: "",
-      });
-    } catch (error) {
-      console.error(
-        "Save category error:",
-        error
-      );
-
-      setError(
-        error.message ||
-          "Failed to save category"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ======================================================
-  // DELETE
-  // ======================================================
-
-  const handleDelete = async (categoryId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this category?"
+    const timer = window.setTimeout(
+      loadCategories,
+      0
     );
 
-    if (!confirmed) return;
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const filteredCategories = useMemo(() => {
+    const value = search.trim().toLowerCase();
+
+    if (!value) return categories;
+
+    return categories.filter((category) =>
+      `${category.name} ${
+        category.description || ""
+      }`
+        .toLowerCase()
+        .includes(value)
+    );
+  }, [categories, search]);
+
+  const handleDelete = async (category) => {
+    if (
+      !window.confirm(
+        `Delete category "${category.name}"?`
+      )
+    ) {
+      return;
+    }
 
     try {
-      setDeletingId(categoryId);
+      setDeletingId(category.id);
 
-      setError("");
-      setSuccess("");
-
-      await deleteCategory(categoryId);
-
-      setSuccess(
-        "Category deleted successfully"
+      const response = await deleteCategory(
+        category.id
       );
 
-      await fetchCategories();
-    } catch (error) {
-      console.error(
-        "Delete category error:",
-        error
+      setCategories((current) =>
+        current.filter(
+          (item) => item.id !== category.id
+        )
       );
 
-      setError(
-        error.message ||
-          "Failed to delete category"
+      toast.success(
+        response.message ||
+          "Category deleted successfully."
+      );
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          "Unable to delete category."
       );
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ======================================================
-  // LOADING
-  // ======================================================
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-gray-500">
-          Loading categories...
-        </p>
-      </div>
-    );
-  }
-
-  // ======================================================
-  // UI
-  // ======================================================
-
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+            Catalog
+          </p>
+
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">
             Categories
           </h1>
 
-          <p className="mt-1 text-gray-500">
-            Manage your library book categories
+          <p className="mt-2 text-sm text-slate-500">
+            Organize books into manageable categories.
           </p>
         </div>
 
         <button
-          onClick={openCreateModal}
-          className="rounded-lg bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+          type="button"
+          onClick={() =>
+            runWithPermission(
+              "categoryCreate",
+              () =>
+                router.push(
+                  "/admin/categories/create"
+                )
+            )
+          }
+          className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
         >
-          + Create Category
+          Add category
         </button>
-
       </div>
 
-      {/* ==================================================
-          ALERTS
-      ================================================== */}
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row">
+        <input
+          value={search}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+          placeholder="Search categories..."
+          className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+        />
+
+        <button
+          type="button"
+          onClick={loadCategories}
+          disabled={loading}
+          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+
+          <button
+            type="button"
+            onClick={loadCategories}
+            className="ml-3 font-semibold underline"
+          >
+            Try again
+          </button>
         </div>
       )}
 
-      {success && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-600">
-          {success}
+      {!error && loading && (
+        <div className="flex min-h-64 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500">
+          Loading categories...
         </div>
       )}
 
-      {/* ==================================================
-          STATS
-      ================================================== */}
+      {!error &&
+        !loading &&
+        filteredCategories.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {search
+                ? "No matching categories"
+                : "No categories yet"}
+            </h2>
 
-      <div className="mb-6">
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-
-          <p className="text-sm text-gray-500">
-            Total Categories
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-gray-900">
-            {categories.length}
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          CATEGORY TABLE
-      ================================================== */}
-
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-
-        <div className="border-b border-gray-200 px-6 py-4">
-
-          <h2 className="text-lg font-semibold text-gray-900">
-            All Categories
-          </h2>
-
-        </div>
-
-        {categories.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-
-            <p className="text-gray-500">
-              No categories found
+            <p className="mt-2 text-sm text-slate-500">
+              {search
+                ? "Try a different search term."
+                : "Create a category to organize your books."}
             </p>
-
-            <button
-              onClick={openCreateModal}
-              className="mt-4 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-            >
-              Create First Category
-            </button>
-
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-
-            <table className="w-full">
-
-              <thead className="bg-gray-50">
-
-                <tr>
-
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Name
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Description
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Created At
-                  </th>
-
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
-                    Actions
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-
-                {categories.map((category) => (
-
-                  <tr
-                    key={category.id}
-                    className="hover:bg-gray-50"
-                  >
-
-                    {/* NAME */}
-
-                    <td className="px-6 py-4">
-
-                      <p className="font-medium text-gray-900">
-                        {category.name}
-                      </p>
-
-                    </td>
-
-                    {/* DESCRIPTION */}
-
-                    <td className="px-6 py-4">
-
-                      <p className="max-w-md text-sm text-gray-600">
-                        {category.description ||
-                          "No description"}
-                      </p>
-
-                    </td>
-
-                    {/* DATE */}
-
-                    <td className="px-6 py-4">
-
-                      <p className="text-sm text-gray-500">
-                        {category.createdAt
-                          ? new Date(
-                              category.createdAt
-                            ).toLocaleDateString()
-                          : "-"}
-                      </p>
-
-                    </td>
-
-                    {/* ACTIONS */}
-
-                    <td className="px-6 py-4">
-
-                      <div className="flex justify-end gap-2">
-
-                        <button
-                          onClick={() =>
-                            openEditModal(
-                              category
-                            )
-                          }
-                          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleDelete(
-                              category.id
-                            )
-                          }
-                          disabled={
-                            deletingId ===
-                            category.id
-                          }
-                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {deletingId ===
-                          category.id
-                            ? "Deleting..."
-                            : "Delete"}
-                        </button>
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
-
           </div>
         )}
 
-      </div>
+      {!error &&
+        !loading &&
+        filteredCategories.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3">
+                      Name
+                    </th>
 
-      {/* ==================================================
-          CREATE / EDIT MODAL
-      ================================================== */}
+                    <th className="px-5 py-3">
+                      Description
+                    </th>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <th className="px-5 py-3 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+                <tbody className="divide-y divide-slate-100">
+                  {filteredCategories.map(
+                    (category) => (
+                      <tr
+                        key={category.id}
+                        className="hover:bg-slate-50"
+                      >
+                        <td className="px-5 py-4 font-semibold text-slate-900">
+                          {category.name}
+                        </td>
 
-            {/* MODAL HEADER */}
+                        <td className="max-w-xl px-5 py-4 text-slate-600">
+                          {category.description ||
+                            "-"}
+                        </td>
 
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runWithPermission(
+                                  "categoryView",
+                                  () =>
+                                    router.push(
+                                      `/admin/categories/${category.id}`
+                                    )
+                                )
+                              }
+                              className="font-semibold text-slate-700 hover:text-slate-950"
+                            >
+                              View
+                            </button>
 
-              <div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runWithPermission(
+                                  "categoryUpdate",
+                                  () =>
+                                    router.push(
+                                      `/admin/categories/${category.id}?edit=true`
+                                    )
+                                )
+                              }
+                              className="font-semibold text-blue-700 hover:text-blue-900"
+                            >
+                              Edit
+                            </button>
 
-                <h2 className="text-xl font-bold text-gray-900">
-                  {editingCategory
-                    ? "Edit Category"
-                    : "Create Category"}
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  {editingCategory
-                    ? "Update category details"
-                    : "Add a new book category"}
-                </p>
-
-              </div>
-
-              <button
-                onClick={closeModal}
-                disabled={saving}
-                className="text-2xl text-gray-400 hover:text-gray-700"
-              >
-                ×
-              </button>
-
+                            <button
+                              type="button"
+                              disabled={
+                                deletingId ===
+                                category.id
+                              }
+                              onClick={() =>
+                                runWithPermission(
+                                  "categoryDelete",
+                                  () =>
+                                    handleDelete(
+                                      category
+                                    )
+                                )
+                              }
+                              className="font-semibold text-red-600 hover:text-red-800 disabled:opacity-50"
+                            >
+                              {deletingId ===
+                              category.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* FORM */}
-
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 p-6"
-            >
-
-              {/* NAME */}
-
-              <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Category Name
-                </label>
-
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Enter category name"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                />
-
-              </div>
-
-              {/* DESCRIPTION */}
-
-              <div>
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Enter category description"
-                  rows={4}
-                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                />
-
-              </div>
-
-              {/* BUTTONS */}
-
-              <div className="flex justify-end gap-3 pt-2">
-
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={saving}
-                  className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingCategory
-                    ? "Update Category"
-                    : "Create Category"}
-                </button>
-
-              </div>
-
-            </form>
-
           </div>
-
-        </div>
-      )}
-
+        )}
     </div>
   );
 }

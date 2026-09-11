@@ -1,343 +1,211 @@
 "use strict";
 
-const reservationService = require(
-  "../services/reservation.service"
-);
+const {
+  rejectReservation,
+  getReservationById,
+  getMyReservations,
+  getAllReservations,
+  expireReservations,
+  createReservation,
+  completeReservation,
+  cancelReservation,
+  approveReservation,
+} = require("../services/reservation");
 
-// ======================================================
-// CREATE RESERVATION
-// MEMBER
-// ======================================================
-
-const createReservation = async (
-  req,
-  res
-) => {
+// Create Reservation
+const create = async (req, res, next) => {
   try {
-    const memberId =
-      req.user.userId;
-
     const { bookId } = req.body;
 
-    const reservation =
-      await reservationService.createReservation({
-        memberId,
-        bookId,
-      });
+    const result = await createReservation({
+      memberId: req.user.userId,
+      bookId,
+    });
 
     return res.status(201).json({
       success: true,
-      message:
-        "Book reservation created successfully",
-      data: {
-        reservation,
-      },
+      message: "Reservation created successfully",
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// GET MY RESERVATIONS
-// MEMBER
-// ======================================================
-
-const getMyReservations = async (
-  req,
-  res
-) => {
+// Get My Reservations
+const getMy = async (req, res, next) => {
   try {
-    const memberId =
-      req.user.userId;
-
-    const reservations =
-      await reservationService.getMyReservations(
-        memberId
-      );
+    const result = await getMyReservations(
+      req.user.userId
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservations fetched successfully",
-
-      data: {
-        reservations,
-      },
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// GET SINGLE RESERVATION
-// MEMBER
-// ======================================================
-
-const getReservationById = async (
-  req,
-  res
-) => {
+// Get Reservation By ID
+const getById = async (req, res, next) => {
   try {
-    const memberId =
-      req.user.userId;
+    const reservationId =
+      req.params.reservationId ||
+      req.params.id ||
+      req.body.reservationId;
 
-    const { reservationId } =
-      req.params;
-
-    const reservation =
-      await reservationService.getReservationById({
-        memberId,
-        reservationId,
-      });
+    const result = await getReservationById({
+      memberId: req.user.userId,
+      reservationId,
+    });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservation fetched successfully",
-
-      data: {
-        reservation,
-      },
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// CANCEL RESERVATION
-// MEMBER
-// ======================================================
-
-const cancelReservation = async (
-  req,
-  res
-) => {
+// Get All Reservations
+const getAll = async (req, res, next) => {
   try {
-    const memberId =
-      req.user.userId;
-
-    const { reservationId } =
-      req.params;
-
-    const { reason } = req.body;
-
-    const reservation =
-      await reservationService.cancelReservation({
-        memberId,
-        reservationId,
-        reason,
-      });
+    const result = await getAllReservations();
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservation cancelled successfully",
-
-      data: {
-        reservation,
-      },
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// GET ALL RESERVATIONS
-// LIBRARIAN + SUPER ADMIN
-// ======================================================
-
-const getAllReservations = async (
-  req,
-  res
-) => {
+// Approve Reservation
+const approve = async (req, res, next) => {
   try {
-    const reservations =
-      await reservationService.getAllReservations();
+    const reservationId =
+      req.params.reservationId ||
+      req.params.id ||
+      req.body.reservationId;
+
+    const result = await approveReservation(
+      reservationId
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservations fetched successfully",
-
-      data: {
-        reservations,
-      },
+      message: "Reservation approved successfully",
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// APPROVE
-// LIBRARIAN + SUPER ADMIN
-// ======================================================
-
-const approveReservation = async (
-  req,
-  res
-) => {
+// Reject Reservation
+const reject = async (req, res, next) => {
   try {
-    const { reservationId } =
-      req.params;
+    const {
+      reason,
+    } = req.body;
 
-    const reservation =
-      await reservationService.approveReservation(
-        reservationId
-      );
+    const reservationId =
+      req.params.reservationId ||
+      req.params.id ||
+      req.body.reservationId;
+
+    const result = await rejectReservation({
+      reservationId,
+      reason,
+    });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservation approved successfully",
-
-      data: {
-        reservation,
-      },
+      message: "Reservation rejected successfully",
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// REJECT
-// LIBRARIAN + SUPER ADMIN
-// ======================================================
-
-const rejectReservation = async (
-  req,
-  res
-) => {
+// Cancel Reservation
+const cancel = async (req, res, next) => {
   try {
-    const { reservationId } =
-      req.params;
+    const {
+      reason,
+    } = req.body;
 
-    const { reason } = req.body;
+    const reservationId =
+      req.params.reservationId ||
+      req.params.id ||
+      req.body.reservationId;
 
-    const reservation =
-      await reservationService.rejectReservation({
-        reservationId,
-        reason,
-      });
+    const result = await cancelReservation({
+      memberId: req.user.userId,
+      reservationId,
+      reason,
+    });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservation rejected successfully",
-
-      data: {
-        reservation,
-      },
+      message: "Reservation cancelled successfully",
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// COMPLETE
-// LIBRARIAN + SUPER ADMIN
-// ======================================================
-
-const completeReservation = async (
-  req,
-  res
-) => {
+// Complete Reservation
+const complete = async (req, res, next) => {
   try {
-    const { reservationId } =
-      req.params;
+    const reservationId =
+      req.params.reservationId ||
+      req.params.id ||
+      req.body.reservationId;
 
-    const reservation =
-      await reservationService.completeReservation(
-        reservationId
-      );
+    const result = await completeReservation(
+      reservationId
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Reservation completed successfully",
-
-      data: {
-        reservation,
-      },
+      message: "Reservation completed successfully",
+      data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        message:
-          error.message ||
-          "Something went wrong",
-      });
+    next(error);
   }
 };
 
-// ======================================================
-// EXPORT
-// ======================================================
+// Expire Reservations
+const expire = async (req, res, next) => {
+  try {
+    const result = await expireReservations();
+
+    return res.status(200).json({
+      success: true,
+      message: "Reservations expired successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
-  createReservation,
-  getMyReservations,
-  getReservationById,
-  cancelReservation,
-  getAllReservations,
-  approveReservation,
-  rejectReservation,
-  completeReservation,
+  create,
+  getMy,
+  getById,
+  getAll,
+  approve,
+  reject,
+  cancel,
+  complete,
+  expire,
 };

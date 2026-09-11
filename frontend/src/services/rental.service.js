@@ -1,60 +1,40 @@
 "use client";
 
-import api from "@/lib/api";
+import api from "../lib/api";
 
-// ======================================================
-// RENT BOOK
-// ======================================================
+// Rent a book
+export const rentBook = async (data) => {
+  const response = await api.post("/rentals", data);
 
-export const rentBook = async ({ bookId, days, quantity }) => {
-  return await api("/rentals", {
-    method: "POST",
-
-    body: JSON.stringify({
-      bookId,
-      days,
-      quantity,
-    }),
-  });
+  return response.data;
 };
 
-// ======================================================
-// GET MY RENTALS
-// ======================================================
-
+// Get my rentals
 export const getMyRentals = async () => {
-  return await api("/rentals/my-rentals", {
-    method: "GET",
-  });
+  const response = await api.get("/rentals/my");
+
+  return response.data;
 };
 
-// ======================================================
-// GET ALL RENTALS
-// ADMIN + LIBRARIAN
-// ======================================================
-
+// Get all rentals
 export const getAllRentals = async () => {
-  return await api("/rentals", {
-    method: "GET",
-  });
+  const response = await api.get("/rentals");
+
+  return response.data;
 };
 
-// ======================================================
-// GET SINGLE RENTAL
-// ======================================================
-
+// Get rental by ID
 export const getRentalById = async (rentalId) => {
-  return await api(`/rentals/${rentalId}`, {
-    method: "GET",
-  });
+  const response = await api.get(`/rentals/${rentalId}`);
+
+  return response.data;
 };
 
-// ======================================================
-// RETURN BOOK
-// ======================================================
-
+// Return book
 export const returnBook = async (rentalId) => {
-  return await api(`/rentals/${rentalId}/return`, {
-    method: "POST",
-  });
+  const response = await api.post(
+    `/rentals/${rentalId}/return`
+  );
+
+  return response.data;
 };

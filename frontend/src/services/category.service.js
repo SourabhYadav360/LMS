@@ -1,53 +1,43 @@
-import api from "@/lib/api";
+"use client";
 
-// ======================================================
-// GET ALL CATEGORIES
-// ======================================================
+import api from "../lib/api";
 
+// Get all categories
 export const getCategories = async () => {
-  return await api("/categories", {
-    method: "GET",
-  });
+  const response = await api.get("/categories");
+
+  return response.data;
 };
 
-// ======================================================
-// GET CATEGORY BY ID
-// ======================================================
+// Get category by ID
+export const getCategoryById = async (categoryId) => {
+  const response = await api.get(`/categories/${categoryId}`);
 
-export const getCategoryById = async (id) => {
-  return await api(`/categories/${id}`, {
-    method: "GET",
-  });
+  return response.data;
 };
 
-// ======================================================
-// CREATE CATEGORY
-// ======================================================
-
+// Create category
 export const createCategory = async (data) => {
-  return await api("/categories", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  const response = await api.post("/categories", data);
+
+  return response.data;
 };
 
-// ======================================================
-// UPDATE CATEGORY
-// ======================================================
+// Update category
+export const updateCategory = async (categoryId, data) => {
+  const response = await api.put(
+    `/categories/${categoryId}`,
+    data
+  );
 
-export const updateCategory = async (id, data) => {
-  return await api(`/categories/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+  return response.data;
 };
 
-// ======================================================
-// DELETE CATEGORY
-// ======================================================
+// Delete category
+export const deleteCategory = async (categoryId) => {
+  const response = await api.delete(
+    `/categories/${categoryId}`
+  );
 
-export const deleteCategory = async (id) => {
-  return await api(`/categories/${id}`, {
-    method: "DELETE",
-  });
+  return response.data;
 };

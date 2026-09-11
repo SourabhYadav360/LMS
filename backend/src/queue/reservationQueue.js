@@ -1,25 +1,16 @@
 "use strict";
 
-const {
-  sequelize,
-  Sequelize,
-  Reservation,
-  Member,
-  Book,
-  Rental,
-  MemberWallet,
-  WalletTransaction,
-} = require("../models");
+const {sequelize,Reservation,Member,Book,Rental,MemberWallet,LibrarianWallet,WalletTransaction,} = require("../models");
+
+const { redisConnection } = require("../config/redis");
+const { Op } = require("sequelize");
 
 // ======================================================
 // CONSTANTS
 // ======================================================
 
-// Requirement:
-// Rental = ₹1 per day
-const RENTAL_RATE_PER_DAY = 1;
 
-// Reservation se automatically kitne din ka rental create hoga
+const RENTAL_RATE_PER_DAY = 1;
 const DEFAULT_RENTAL_DAYS = 1;
 
 // ======================================================
@@ -35,23 +26,6 @@ const createError = (message, statusCode) => {
 // ======================================================
 // PROCESS RESERVATION QUEUE
 // ======================================================
-//
-// FIFO:
-//
-// Oldest reservation → pehle check
-//       ↓
-// Balance sufficient?
-//   YES ↓
-// Rental create
-// Wallet deduct
-// Book assign
-//
-//   NO ↓
-// Reservation PENDING rahegi
-//       ↓
-// Next reservation check
-//
-// ======================================================
 
 const processReservationQueue = async (bookId) => {
   // ----------------------------------------------------
@@ -63,41 +37,27 @@ const processReservationQueue = async (bookId) => {
   if (!bookExists) {
     throw createError("Book not found", 404);
   }
-
-  // ----------------------------------------------------
-  // 2. FIFO LOOP
-  // ----------------------------------------------------
-  //
-  // Important:
-  // Ek book ki available copy ek hi reservation ko milegi.
-  //
-  // Agar insufficient balance wale member ko skip kar diya,
-  // to next member check hoga.
-  //
-  // Successful assignment ke baad function stop hoga.
-  //
+  const skippedReservationIds = new Set(); //ek empty Set collection create karna.  Set JavaScript ka collection hota hai jisme duplicate values store nahi hoti.
 
   while (true) {
     const transaction = await sequelize.transaction();
 
     try {
-      // ------------------------------------------------
-      // 3. GET OLDEST PENDING RESERVATION
-      // ------------------------------------------------
-      //
-      // createdAt ASC = FIFO
-      //
-      // Sabse purani reservation pehle.
-      //
+      const reservationWhere = {
+        bookId,
+        status: {
+          [Op.in]: ["PENDING", "APPROVED"],
+        },
+      };
+
+      if (skippedReservationIds.size > 0) {
+        reservationWhere.id = { [Op.notIn]: [...skippedReservationIds],}; //Is list ke andar jo values hain, unko exclude karo.
+      }
 
       const reservation = await Reservation.findOne({
-        where: {
-          bookId,
+        where: reservationWhere,
 
-          status: "PENDING",
-        },
-
-        order: [["createdAt", "ASC"]],
+        order: [["reservedAt", "ASC"]],
 
         transaction,
 
@@ -108,7 +68,7 @@ const processReservationQueue = async (bookId) => {
       // 4. NO PENDING RESERVATION
       // ------------------------------------------------
 
-      if (!reservation) {
+      if (!reservation) { 
         await transaction.commit();
 
         return {
@@ -122,10 +82,7 @@ const processReservationQueue = async (bookId) => {
       // 5. EXPIRY CHECK
       // ------------------------------------------------
 
-      if (
-        reservation.expiresAt &&
-        new Date() > new Date(reservation.expiresAt)
-      ) {
+      if (reservation.expiresAt && new Date() > new Date(reservation.expiresAt)) {
         await reservation.update(
           {
             status: "EXPIRED",
@@ -223,56 +180,13 @@ const processReservationQueue = async (bookId) => {
         };
       }
 
-      // ------------------------------------------------
-      // 10. ALREADY RENTED CHECK
-      // ------------------------------------------------
-
-      const existingRental =
-        await Rental.findOne({
-          where: {
-            memberId: reservation.memberId,
-
-            bookId,
-
-            status: {
-              [Sequelize.Op.in]: [
-                "ACTIVE",
-                "OVERDUE",
-              ],
-            },
-          },
-
-          transaction,
-        });
-
-      if (existingRental) {
-        // Member already book rent kar chuka hai.
-        // Is reservation ko complete karna logical hai
-        // because same member ko same book dobara nahi dena.
-
-        await reservation.update(
-          {
-            status: "COMPLETED",
-
-            completedAt: new Date(),
-          },
-          {
-            transaction,
-          }
-        );
-
-        await transaction.commit();
-
-        // Next reservation
-        continue;
-      }
+     
 
       // ------------------------------------------------
       // 11. GET MEMBER WALLET + LOCK
       // ------------------------------------------------
 
-      const wallet =
-        await MemberWallet.findOne({
+      const wallet = await MemberWallet.findOne({
           where: {
             memberId: reservation.memberId,
           },
@@ -283,25 +197,51 @@ const processReservationQueue = async (bookId) => {
         });
 
       if (!wallet) {
-        // Wallet nahi mila.
-        // Reservation ko PENDING hi rakhenge.
-        // Next member check hoga.
-
         await transaction.commit();
 
-        continue;
+        return {
+          success: true,
+          processed: false,
+          reason: "Member wallet not found",
+        };
+      }
+
+      const librarianId = wallet.fundedByLibrarianId;
+
+      if (!librarianId) {
+        throw createError(
+          "Member wallet funding librarian not found",
+          400
+        );
+      }
+
+      let librarianWallet = await LibrarianWallet.findOne({
+        where: {
+          librarianId,
+        },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!librarianWallet) {
+        librarianWallet = await LibrarianWallet.create(
+          {
+            librarianId,
+            balance: 0,
+          },
+          {
+            transaction,
+          }
+        );
       }
 
       // ------------------------------------------------
       // 12. RENTAL AMOUNT
       // ------------------------------------------------
 
-      const rentalDays =
-        DEFAULT_RENTAL_DAYS;
+      const rentalDays = DEFAULT_RENTAL_DAYS;
 
-      const rentalAmount =
-        rentalDays *
-        RENTAL_RATE_PER_DAY;
+      const rentalAmount = rentalDays *  RENTAL_RATE_PER_DAY;
 
       // ------------------------------------------------
       // 13. BALANCE CHECK
@@ -321,13 +261,13 @@ const processReservationQueue = async (bookId) => {
       // ❌ EXPIRED nahi
       //
       // ✅ PENDING rahegi
-      // ✅ Next member check hoga
+      // ✅ Queue first-in-first-out rahegi
       //
 
       if (balanceBefore < rentalAmount) {
         await transaction.commit();
 
-        // Next FIFO reservation
+        skippedReservationIds.add(reservation.id);
         continue;
       }
 
@@ -335,8 +275,7 @@ const processReservationQueue = async (bookId) => {
       // 14. CALCULATE BALANCE AFTER
       // ------------------------------------------------
 
-      const balanceAfter =
-        balanceBefore - rentalAmount;
+      const balanceAfter = balanceBefore - rentalAmount;
 
       // ------------------------------------------------
       // 15. RENTAL DATE
@@ -350,9 +289,7 @@ const processReservationQueue = async (bookId) => {
 
       const dueDate = new Date(rentedAt);
 
-      dueDate.setDate(
-        dueDate.getDate() + rentalDays
-      );
+      dueDate.setDate(dueDate.getDate() + rentalDays);
 
       // ------------------------------------------------
       // 17. DEDUCT WALLET
@@ -377,11 +314,19 @@ const processReservationQueue = async (bookId) => {
 
           bookId,
 
+          librarianId,
+
           rentedAt,
 
           dueDate,
 
           rentalAmount,
+
+          quantity: 1,
+
+          settlementStatus: "SETTLED",
+
+          settledAt: rentedAt,
 
           status: "ACTIVE",
         },
@@ -394,8 +339,7 @@ const processReservationQueue = async (bookId) => {
       // 19. DECREASE BOOK COPY
       // ------------------------------------------------
 
-      const newAvailableCopies =
-        Number(book.availableCopies) - 1;
+      const newAvailableCopies = Number(book.availableCopies) - 1;
 
       await book.update(
         {
@@ -403,9 +347,7 @@ const processReservationQueue = async (bookId) => {
             newAvailableCopies,
 
           status:
-            newAvailableCopies === 0
-              ? "UNAVAILABLE"
-              : "AVAILABLE",
+            newAvailableCopies === 0? "UNAVAILABLE" : "AVAILABLE",
         },
         {
           transaction,
@@ -442,6 +384,38 @@ const processReservationQueue = async (bookId) => {
         }
       );
 
+      const librarianBalanceBefore =
+        Number(librarianWallet.balance);
+
+      const librarianBalanceAfter =
+        librarianBalanceBefore + rentalAmount;
+
+      await librarianWallet.update(
+        {
+          balance: librarianBalanceAfter,
+        },
+        {
+          transaction,
+        }
+      );
+
+      await WalletTransaction.create(
+        {
+          walletType: "LIBRARIAN",
+          walletId: librarianWallet.id,
+          type: "CREDIT",
+          amount: rentalAmount,
+          balanceBefore: librarianBalanceBefore,
+          balanceAfter: librarianBalanceAfter,
+          description: `Reservation rental income - ${book.title}`,
+          referenceType: "RENTAL",
+          referenceId: rental.id,
+        },
+        {
+          transaction,
+        }
+      );
+
       // ------------------------------------------------
       // 21. RESERVATION COMPLETED
       // ------------------------------------------------
@@ -462,6 +436,17 @@ const processReservationQueue = async (bookId) => {
       // ------------------------------------------------
 
       await transaction.commit();
+
+      await redisConnection.del("reservations:all");
+      await redisConnection.del("books:all");
+      await redisConnection.del("rentals:all");
+      await redisConnection.del(`rentals:member:${reservation.memberId}`);
+
+      // After assigning one available copy, continue processing
+      // if more copies are available and more approved reservations exist.
+      if (Number(book.availableCopies) > 0) {
+        continue;
+      }
 
       // ------------------------------------------------
       // 23. SUCCESS RESPONSE

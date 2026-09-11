@@ -1,351 +1,557 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
+import { useAuth } from "@/context/AuthContext";
 import {
+  deleteMember,
   getMembers,
-  activateMember,
-  deactivateMember,
-} from "@/services/admin.service";
+} from "@/services/member.service";
+import { fundMemberWallet } from "@/services/wallet.service";
+import { hasPermission } from "@/utils/permissions";
 
 export default function MembersPage() {
+  const appRouter = useRouter();
+  const pathname = usePathname();
+
+  const isLibrarianMembersPage =
+    pathname.startsWith("/librarian/");
+
+  const membersPath = isLibrarianMembersPage
+    ? "/librarian/members"
+    : "/admin/members";
+
+  const router = {
+    ...appRouter,
+    push: (path) =>
+      appRouter.push(
+        path.replace(
+          "/admin/members",
+          membersPath
+        )
+      ),
+  };
+
+  const { user } = useAuth();
+
+  const canManageWallet =
+    isLibrarianMembersPage &&
+    (user?.permissions?.walletManage ||
+      user?.walletManage);
+
+  const runWithPermission = (permission, action) => {
+    if (!hasPermission(user, permission)) {
+      toast.error(
+        "You do not have permission for this action"
+      );
+      return;
+    }
+
+    action();
+  };
+
   const [members, setMembers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] =
-    useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [walletMember, setWalletMember] = useState(null);
+  const [walletForm, setWalletForm] = useState({
+    amount: "",
+    description: "",
+  });
+  const [funding, setFunding] = useState(false);
   const [error, setError] = useState("");
 
-  // ======================================================
-  // FETCH MEMBERS
-  // ======================================================
-
-  const fetchMembers = async () => {
+  const loadMembers = async () => {
     try {
       setLoading(true);
       setError("");
 
       const response = await getMembers();
 
-      console.log(
-        "Members API response:",
-        response
-      );
-
       setMembers(
-        response?.data?.members || []
+        Array.isArray(response.data)
+          ? response.data
+          : []
       );
-    } catch (error) {
-      console.error(
-        "Get members error:",
-        error
-      );
-
+    } catch (requestError) {
       setError(
-        error.message ||
-          "Failed to fetch members"
+        requestError.response?.data?.message ||
+          "Unable to load members."
       );
-
-      setMembers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // ======================================================
-  // INITIAL LOAD
-  // ======================================================
-
   useEffect(() => {
-    fetchMembers();
+    const timer = window.setTimeout(
+      loadMembers,
+      0
+    );
+
+    return () =>
+      window.clearTimeout(timer);
   }, []);
 
-  // ======================================================
-  // ACTIVATE
-  // ======================================================
+  const filteredMembers = useMemo(() => {
+    const value = search.trim().toLowerCase();
 
-  const handleActivate = async (memberId) => {
+    return members.filter((member) => {
+      const matchesSearch =
+        !value ||
+        `${member.name} ${member.email}`
+          .toLowerCase()
+          .includes(value);
+
+      return (
+        matchesSearch &&
+        (status === "ALL" ||
+          member.status === status)
+      );
+    });
+  }, [members, search, status]);
+
+  const handleDelete = async (member) => {
+    if (
+      !window.confirm(
+        `Delete member "${member.name}"?`
+      )
+    ) {
+      return;
+    }
+
     try {
-      setActionLoading(memberId);
-      setError("");
+      setDeletingId(member.id);
 
-      await activateMember(memberId);
-
-      await fetchMembers();
-    } catch (error) {
-      console.error(
-        "Activate member error:",
-        error
+      const response = await deleteMember(
+        member.id
       );
 
-      setError(
-        error.message ||
-          "Failed to activate member"
+      setMembers((current) =>
+        current.filter(
+          (item) => item.id !== member.id
+        )
+      );
+
+      toast.success(
+        response.message ||
+          "Member deleted successfully."
+      );
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          "Unable to delete member."
       );
     } finally {
-      setActionLoading(null);
+      setDeletingId(null);
     }
   };
 
-  // ======================================================
-  // DEACTIVATE
-  // ======================================================
+  const openWallet = (member) => {
+    setWalletMember(member);
 
-  const handleDeactivate = async (memberId) => {
-    try {
-      setActionLoading(memberId);
-      setError("");
-
-      await deactivateMember(memberId);
-
-      await fetchMembers();
-    } catch (error) {
-      console.error(
-        "Deactivate member error:",
-        error
-      );
-
-      setError(
-        error.message ||
-          "Failed to deactivate member"
-      );
-    } finally {
-      setActionLoading(null);
-    }
+    setWalletForm({
+      amount: "",
+      description: "",
+    });
   };
 
-  // ======================================================
-  // LOADING
-  // ======================================================
+  const handleFundWallet = async (event) => {
+    event.preventDefault();
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-gray-500">
-          Loading members...
-        </p>
-      </div>
-    );
-  }
+    try {
+      setFunding(true);
 
-  // ======================================================
-  // UI
-  // ======================================================
+      const response = await fundMemberWallet({
+        memberId: walletMember.id,
+        amount: Number(walletForm.amount),
+        description:
+          walletForm.description.trim() ||
+          undefined,
+      });
+
+      const balanceAfter =
+        response.data?.memberWallet?.balanceAfter;
+
+      setMembers((current) =>
+        current.map((member) =>
+          member.id === walletMember.id
+            ? {
+                ...member,
+                wallet: {
+                  ...member.wallet,
+                  balance:
+                    balanceAfter ??
+                    member.wallet?.balance,
+                },
+              }
+            : member
+        )
+      );
+
+      toast.success(
+        response.message ||
+          "Member wallet funded successfully."
+      );
+
+      setWalletMember(null);
+
+      await loadMembers();
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          "Unable to fund member wallet."
+      );
+    } finally {
+      setFunding(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+            People
+          </p>
 
-      {/* HEADER */}
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">
+            Members
+          </h1>
 
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Members
-        </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {isLibrarianMembersPage
+              ? "Manage members and fund their wallets."
+              : "Manage members."}
+          </p>
+        </div>
 
-        <p className="mt-1 text-gray-500">
-          View and manage library members
-        </p>
+        <button
+          type="button"
+          onClick={() =>
+            runWithPermission(
+              "memberCreate",
+              () =>
+                router.push(
+                  "/admin/members/create"
+                )
+            )
+          }
+          className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
+        >
+          Add member
+        </button>
       </div>
 
-      {/* ERROR */}
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 lg:flex-row">
+        <input
+          value={search}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+          placeholder="Search by name or email..."
+          className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+        />
+
+        <select
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value)
+          }
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
+        >
+          <option value="ALL">
+            All statuses
+          </option>
+          <option value="ACTIVE">
+            Active
+          </option>
+          <option value="INACTIVE">
+            Inactive
+          </option>
+        </select>
+
+        <button
+          type="button"
+          onClick={loadMembers}
+          disabled={loading}
+          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
 
       {error && (
-        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+
+          <button
+            type="button"
+            onClick={loadMembers}
+            className="ml-3 font-semibold underline"
+          >
+            Try again
+          </button>
         </div>
       )}
 
-      {/* STATS */}
+      {!error && loading && (
+        <State text="Loading members..." />
+      )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-
-        {/* TOTAL */}
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Total Members
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-gray-900">
-            {members.length}
-          </p>
-        </div>
-
-        {/* ACTIVE */}
-
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Active Members
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-green-600">
-            {
-              members.filter(
-                (member) =>
-                  member.status === "ACTIVE"
-              ).length
+      {!error &&
+        !loading &&
+        filteredMembers.length === 0 && (
+          <State
+            text={
+              search || status !== "ALL"
+                ? "No matching members."
+                : "No members yet."
             }
-          </p>
-        </div>
+          />
+        )}
 
-        {/* INACTIVE */}
+      {!error &&
+        !loading &&
+        filteredMembers.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3">
+                      Member
+                    </th>
 
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Inactive Members
-          </p>
+                    <th className="px-5 py-3">
+                      Status
+                    </th>
 
-          <p className="mt-2 text-3xl font-bold text-red-600">
-            {
-              members.filter(
-                (member) =>
-                  member.status === "INACTIVE"
-              ).length
-            }
-          </p>
-        </div>
+                    {isLibrarianMembersPage && (
+                      <th className="px-5 py-3">
+                        Wallet
+                      </th>
+                    )}
 
-      </div>
+                    <th className="px-5 py-3">
+                      Rentals
+                    </th>
 
-      {/* MEMBERS TABLE */}
+                    <th className="px-5 py-3 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+                <tbody className="divide-y">
+                  {filteredMembers.map(
+                    (member) => (
+                      <tr
+                        key={member.id}
+                        className="hover:bg-slate-50"
+                      >
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-slate-900">
+                            {member.name}
+                          </p>
 
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            All Members
-          </h2>
-        </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {member.email}
+                          </p>
+                        </td>
 
-        {members.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-gray-500">
-              No members found
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-
-            <table className="w-full">
-
-              <thead className="bg-gray-50">
-
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Name
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Email
-                  </th>
-
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Status
-                  </th>
-
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
-                    Action
-                  </th>
-                </tr>
-
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-
-                {members.map((member) => {
-
-                  const isActive =
-                    member.status === "ACTIVE";
-
-                  const isLoading =
-                    actionLoading === member.id;
-
-                  return (
-                    <tr
-                      key={member.id}
-                      className="hover:bg-gray-50"
-                    >
-
-                      {/* NAME */}
-
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">
-                          {member.name}
-                        </div>
-                      </td>
-
-                      {/* EMAIL */}
-
-                      <td className="px-6 py-4">
-                        <div className="text-gray-600">
-                          {member.email}
-                        </div>
-                      </td>
-
-                      {/* STATUS */}
-
-                      <td className="px-6 py-4">
-
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                            isActive
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
+                        <td className="px-5 py-4">
                           {member.status}
-                        </span>
+                        </td>
 
-                      </td>
-
-                      {/* ACTION */}
-
-                      <td className="px-6 py-4 text-right">
-
-                        {isActive ? (
-                          <button
-                            onClick={() =>
-                              handleDeactivate(
-                                member.id
-                              )
-                            }
-                            disabled={isLoading}
-                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {isLoading
-                              ? "Updating..."
-                              : "Deactivate"}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              handleActivate(
-                                member.id
-                              )
-                            }
-                            disabled={isLoading}
-                            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {isLoading
-                              ? "Updating..."
-                              : "Activate"}
-                          </button>
+                        {isLibrarianMembersPage && (
+                          <td className="px-5 py-4">
+                            ₹
+                            {member.wallet?.balance ??
+                              0}
+                          </td>
                         )}
 
-                      </td>
+                        <td className="px-5 py-4">
+                          {member.rentals?.length ??
+                            0}
+                        </td>
 
-                    </tr>
-                  );
-                })}
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runWithPermission(
+                                  "memberView",
+                                  () =>
+                                    router.push(
+                                      `/admin/members/${member.id}`
+                                    )
+                                )
+                              }
+                              className="font-semibold text-slate-700"
+                            >
+                              View
+                            </button>
 
-              </tbody>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                runWithPermission(
+                                  "memberUpdate",
+                                  () =>
+                                    router.push(
+                                      `/admin/members/${member.id}?edit=true`
+                                    )
+                                )
+                              }
+                              className="font-semibold text-blue-700"
+                            >
+                              Edit
+                            </button>
 
-            </table>
+                            {canManageWallet && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openWallet(member)
+                                }
+                                className="font-semibold text-emerald-700"
+                              >
+                                Wallet
+                              </button>
+                            )}
 
+                            <button
+                              type="button"
+                              disabled={
+                                deletingId ===
+                                member.id
+                              }
+                              onClick={() =>
+                                runWithPermission(
+                                  "memberDelete",
+                                  () =>
+                                    handleDelete(
+                                      member
+                                    )
+                                )
+                              }
+                              className="font-semibold text-red-600 disabled:opacity-50"
+                            >
+                              {deletingId ===
+                              member.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-      </div>
+      {walletMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <form
+            onSubmit={handleFundWallet}
+            className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 shadow-2xl"
+          >
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">
+                Fund member wallet
+              </h2>
 
+              <p className="mt-1 text-sm text-slate-500">
+                {walletMember.name} · current
+                balance ₹
+                {walletMember.wallet?.balance ??
+                  0}
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">
+                Amount
+              </span>
+
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                value={walletForm.amount}
+                onChange={(event) =>
+                  setWalletForm({
+                    ...walletForm,
+                    amount: event.target.value,
+                  })
+                }
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">
+                Description
+              </span>
+
+              <input
+                value={walletForm.description}
+                onChange={(event) =>
+                  setWalletForm({
+                    ...walletForm,
+                    description:
+                      event.target.value,
+                  })
+                }
+                placeholder="Optional"
+                className="w-full rounded-lg border px-3 py-2.5 text-sm"
+              />
+            </label>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setWalletMember(null)
+                }
+                disabled={funding}
+                className="rounded-lg border px-4 py-2.5 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={funding}
+                className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {funding
+                  ? "Adding..."
+                  : "Add money"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function State({ text }) {
+  return (
+    <div className="flex min-h-56 items-center justify-center rounded-xl border bg-white text-sm text-slate-500">
+      {text}
     </div>
   );
 }

@@ -1,144 +1,80 @@
 "use strict";
 
-const authService = require("../services/auth.service");
+const {
+  registerMember,
+  login,
+  getMe,
+} = require("../services/auth");
 
 // ======================================================
 // REGISTER MEMBER
 // ======================================================
 
-const registerMember = async (req, res) => {
+const register = async (req, res, next) => {
   try {
-    const member =
-      await authService.registerMember(
-        req.body
-      );
+    const result = await registerMember(req.body);
 
     return res.status(201).json({
       success: true,
-      message:
-        "Member registered successfully",
-      data: {
-        user: member,
-      },
+      message: "Member registered successfully",
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// SINGLE LOGIN
+// LOGIN
 // ======================================================
 
-const login = async (req, res) => {
+const loginUser = async (req, res, next) => {
   try {
-    const result =
-      await authService.login(req.body);
+    const result = await login(req.body);
 
-    // JWT ONLY COOKIE
-    res.cookie(
-      "accessToken",
-      result.token,
-      {
-        httpOnly: true,
-
-        secure:
-          process.env.NODE_ENV ===
-          "production",
-
-        sameSite: "lax",
-
-        maxAge:
-          24 * 60 * 60 * 1000,
-      }
-    );
+    res.cookie("accessToken", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });  //es.cookie() Express ka built-in method hai jo browser mein cookie set karta hai.
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
-
-      data: {
-        user: result.user,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// GET ME
+// GET CURRENT USER
 // ======================================================
 
-const getMe = async (req, res) => {
+const getCurrentUser = async (req, res, next) => {
   try {
-    const user =
-      await authService.getMe(
-        req.user.userId,
-        req.user.role
-      );
+    const result = await getMe(
+      req.user.userId,
+      req.user.role
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "User fetched successfully",
-      data: {
-        user,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// LOGOUT
+// EXPORT
 // ======================================================
 
-const logout = async (req, res) => {
-  res.clearCookie(
-    "accessToken",
-    {
-      httpOnly: true,
-
-      secure:
-        process.env.NODE_ENV ===
-        "production",
-
-      sameSite: "lax",
-    }
-  );
-
-  return res.status(200).json({
-    success: true,
-    message: "Logout successful",
-  });
-};
-
 module.exports = {
-  registerMember,
-  login,
-  getMe,
-  logout,
+  register,
+  loginUser,
+  getCurrentUser,
 };

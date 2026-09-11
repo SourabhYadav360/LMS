@@ -1,188 +1,106 @@
 "use strict";
 
 const jwt = require("jsonwebtoken");
-
-const {
-  Librarian,
-  Member,
-} = require("../models");
-
-// ======================================================
-// AUTHENTICATE
-// ======================================================
+const {SuperAdmin,Librarian,Member,} = require("../models");
 
 const authenticate = async (req, res, next) => {
   try {
-    // ==================================================
-    // GET TOKEN FROM HTTP-ONLY COOKIE
-    // ==================================================
-
     const token = req.cookies?.accessToken;
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication token is required",
-      });
+      const error = new Error("Authentication required");
+      error.statusCode = 401;
+      throw error;
     }
-
-    // ==================================================
-    // VERIFY JWT
-    // ==================================================
 
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET
     );
 
-    // ==================================================
-    // VALIDATE TOKEN
-    // ==================================================
-
     if (!decoded.userId || !decoded.role) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication token",
-      });
+      const error = new Error("Invalid authentication token");
+      error.statusCode = 401;
+      throw error;
     }
 
-    // ==================================================
-    // SUPER ADMIN
-    // ==================================================
+    let user;
 
     if (decoded.role === "SUPER_ADMIN") {
-      req.user = {
-        userId: decoded.userId,
-        role: "SUPER_ADMIN",
-      };
-
-      return next();
+      user = await SuperAdmin.findByPk(decoded.userId);
+    } else if (decoded.role === "LIBRARIAN") {
+      user = await Librarian.findByPk(decoded.userId);
+    } else if (decoded.role === "MEMBER") {
+      user = await Member.findByPk(decoded.userId);
+    } else {
+      const error = new Error("Invalid user role");
+      error.statusCode = 401;
+      throw error;
     }
 
-    // ==================================================
-    // LIBRARIAN
-    // ==================================================
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (user.status !== "ACTIVE") {
+      const error = new Error("User account is not active");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    req.user = {
+      userId: user.id,
+      role: decoded.role,
+    };
 
     if (decoded.role === "LIBRARIAN") {
-      const librarian = await Librarian.findByPk(
-        decoded.userId,
-        {
-          attributes: {
-            exclude: ["password"],
-          },
-        }
-      );
+      req.user.bookView = user.bookView;
+      req.user.bookCreate = user.bookCreate;
+      req.user.bookUpdate = user.bookUpdate;
+      req.user.bookDelete = user.bookDelete;
 
-      if (!librarian) {
-        return res.status(401).json({
-          success: false,
-          message: "Librarian account not found",
-        });
-      }
+      req.user.memberView = user.memberView;
+      req.user.memberCreate = user.memberCreate;
+      req.user.memberUpdate = user.memberUpdate;
+      req.user.memberDelete = user.memberDelete;
 
-      // ==================================================
-      // ATTACH LIBRARIAN + PERMISSIONS
-      // ==================================================
+      req.user.categoryView = user.categoryView;
+      req.user.categoryCreate = user.categoryCreate;
+      req.user.categoryUpdate = user.categoryUpdate;
+      req.user.categoryDelete = user.categoryDelete;
 
-      req.user = {
-        userId: librarian.id,
+      req.user.walletView = user.walletView;
+      req.user.walletManage = user.walletManage;
 
-        // IMPORTANT
-        // Librarian model me role field nahi hai
-        role: "LIBRARIAN",
+      req.user.rentalView = user.rentalView;
+      req.user.rentalCreate = user.rentalCreate;
+      req.user.rentalReturn = user.rentalReturn;
 
-        // BOOK
-        bookView: librarian.bookView,
-        bookCreate: librarian.bookCreate,
-        bookUpdate: librarian.bookUpdate,
-        bookDelete: librarian.bookDelete,
+      req.user.reservationView = user.reservationView;
+      req.user.reservationManage = user.reservationManage;
 
-        // MEMBER
-        memberView: librarian.memberView,
-        memberCreate: librarian.memberCreate,
-        memberUpdate: librarian.memberUpdate,
-        memberDelete: librarian.memberDelete,
-
-        // CATEGORY
-        categoryView: librarian.categoryView,
-        categoryCreate: librarian.categoryCreate,
-        categoryUpdate: librarian.categoryUpdate,
-        categoryDelete: librarian.categoryDelete,
-
-        // WALLET
-        walletView: librarian.walletView,
-        walletManage: librarian.walletManage,
-
-        // RENTAL
-        rentalView: librarian.rentalView,
-        rentalCreate: librarian.rentalCreate,
-        rentalReturn: librarian.rentalReturn,
-
-        // RESERVATION
-        reservationView: librarian.reservationView,
-        reservationManage: librarian.reservationManage,
-
-        // DASHBOARD
-        dashboardView: librarian.dashboardView,
-        reportView: librarian.reportView,
-      };
-
-      return next();
+      req.user.dashboardView = user.dashboardView;
+      req.user.reportView = user.reportView;
     }
 
-    // ==================================================
-    // MEMBER
-    // ==================================================
-
-    if (decoded.role === "MEMBER") {
-      const member = await Member.findByPk(
-        decoded.userId,
-        {
-          attributes: {
-            exclude: ["password"],
-          },
-        }
-      );
-
-      if (!member) {
-        return res.status(401).json({
-          success: false,
-          message: "Member account not found",
-        });
-      }
-
-      req.user = {
-        userId: member.id,
-        role: "MEMBER",
-      };
-
-      return next();
-    }
-
-    // ==================================================
-    // UNKNOWN ROLE
-    // ==================================================
-
-    return res.status(403).json({
-      success: false,
-      message: "Invalid user role",
-    });
-
+    next();
   } catch (error) {
-    console.error(
-      "Authentication error:",
-      error.message
-    );
+    if (error.name === "JsonWebTokenError") {
+      error.statusCode = 401;
+      error.message = "Invalid authentication token";
+    }
 
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired authentication token",
-    });
+    if (error.name === "TokenExpiredError") {
+      error.statusCode = 401;
+      error.message = "Authentication token expired";
+    }
+
+    next(error);
   }
 };
 
-// ======================================================
-// EXPORT
-// ======================================================
-
-module.exports = authenticate;
+module.exports = {
+  authenticate,
+};

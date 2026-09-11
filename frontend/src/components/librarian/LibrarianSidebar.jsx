@@ -52,6 +52,11 @@ const menuItems = [
     permission: "reportView",
     icon: "📈",
   },
+  {
+    label: "Profile",
+    href: "/librarian/profile",
+    icon: "👤",
+  },
 ];
 
 export default function LibrarianSidebar({

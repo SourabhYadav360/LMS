@@ -2,19 +2,18 @@
 
 const express = require("express");
 
-const bookController = require("../controllers/book.controller");
+const {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+} = require("../controllers/book.controller");
 
-const authenticate = require("../middlewares/auth.middleware");
-const authorize = require("../middlewares/authorize.middleware");
-const requirePermission = require("../middlewares/permission.middleware");
+const { authenticate } = require("../middlewares/auth.middleware");
+const { requirePermission } = require("../middlewares/permission.middleware");
 
 const router = express.Router();
-
-// ======================================================
-// AUTHENTICATION
-// ======================================================
-
-router.use(authenticate);
 
 // ======================================================
 // GET ALL BOOKS
@@ -22,20 +21,20 @@ router.use(authenticate);
 
 router.get(
   "/",
-  authorize("SUPER_ADMIN", "LIBRARIAN", "MEMBER"),
+  authenticate,
   requirePermission("bookView"),
-  bookController.getBooks
+  getAll
 );
 
 // ======================================================
-// GET SINGLE BOOK
+// GET BOOK BY ID
 // ======================================================
 
 router.get(
-  "/:id",
-  authorize("SUPER_ADMIN", "LIBRARIAN", "MEMBER"),
+  "/:bookId",
+  authenticate,
   requirePermission("bookView"),
-  bookController.getBookById
+  getById
 );
 
 // ======================================================
@@ -44,9 +43,9 @@ router.get(
 
 router.post(
   "/",
-  authorize("SUPER_ADMIN", "LIBRARIAN"),
+  authenticate,
   requirePermission("bookCreate"),
-  bookController.createBook
+  create
 );
 
 // ======================================================
@@ -54,10 +53,10 @@ router.post(
 // ======================================================
 
 router.put(
-  "/:id",
-  authorize("SUPER_ADMIN", "LIBRARIAN"),
+  "/:bookId",
+  authenticate,
   requirePermission("bookUpdate"),
-  bookController.updateBook
+  update
 );
 
 // ======================================================
@@ -65,10 +64,10 @@ router.put(
 // ======================================================
 
 router.delete(
-  "/:id",
-  authorize("SUPER_ADMIN", "LIBRARIAN"),
+  "/:bookId",
+  authenticate,
   requirePermission("bookDelete"),
-  bookController.deleteBook
+  remove
 );
 
 module.exports = router;

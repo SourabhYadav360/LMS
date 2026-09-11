@@ -1,130 +1,88 @@
 "use client";
 
-import api from "@/lib/api";
+import api from "../lib/api";
 
-// ======================================================
-// CREATE RESERVATION
-// MEMBER
-// ======================================================
+// Create reservation
+export const createReservation = async (data) => {
+  const response = await api.post("/reservations", data);
 
-export const createReservation = async (bookId) => {
-  return await api("/reservations", {
-    method: "POST",
-
-    body: JSON.stringify({
-      bookId,
-    }),
-  });
+  return response.data;
 };
 
-// ======================================================
-// GET MY RESERVATIONS
-// MEMBER
-// ======================================================
-
+// Get my reservations
 export const getMyReservations = async () => {
-  return await api("/reservations/my-reservations", {
-    method: "GET",
-  });
+  const response = await api.get("/reservations/my");
+
+  return response.data;
 };
 
-// ======================================================
-// GET SINGLE RESERVATION
-// MEMBER
-// ======================================================
-
-export const getReservationById = async (
-  reservationId
-) => {
-  return await api(
-    `/reservations/${reservationId}`,
-    {
-      method: "GET",
-    }
-  );
-};
-
-// ======================================================
-// CANCEL RESERVATION
-// MEMBER
-// ======================================================
-
-export const cancelReservation = async (
-  reservationId,
-  reason = ""
-) => {
-  return await api(
-    `/reservations/${reservationId}/cancel`,
-    {
-      method: "POST",
-
-      body: JSON.stringify({
-        reason,
-      }),
-    }
-  );
-};
-
-// ======================================================
-// GET ALL RESERVATIONS
-// SUPER ADMIN + LIBRARIAN
-// ======================================================
-
+// Get all reservations
 export const getAllReservations = async () => {
-  return await api("/reservations", {
-    method: "GET",
-  });
+  const response = await api.get("/reservations");
+
+  return response.data;
 };
 
-// ======================================================
-// APPROVE RESERVATION
-// SUPER ADMIN + LIBRARIAN
-// ======================================================
-
-export const approveReservation = async (
-  reservationId
-) => {
-  return await api(
-    `/reservations/${reservationId}/approve`,
-    {
-      method: "POST",
-    }
+// Get reservation by ID
+export const getReservationById = async (reservationId) => {
+  const response = await api.get(
+    `/reservations/${reservationId}`
   );
+
+  return response.data;
 };
 
-// ======================================================
-// REJECT RESERVATION
-// SUPER ADMIN + LIBRARIAN
-// ======================================================
+// Approve reservation
+export const approveReservation = async (reservationId) => {
+  const response = await api.put(
+    `/reservations/${reservationId}/approve`
+  );
 
+  return response.data;
+};
+
+// Reject reservation
 export const rejectReservation = async (
   reservationId,
-  reason = ""
+  reason
 ) => {
-  return await api(
+  const response = await api.put(
     `/reservations/${reservationId}/reject`,
     {
-      method: "POST",
-
-      body: JSON.stringify({
-        reason,
-      }),
+      reason,
     }
   );
+
+  return response.data;
 };
 
-// ======================================================
-// COMPLETE RESERVATION
-// SUPER ADMIN + LIBRARIAN
-// ======================================================
-
-export const completeReservation = async (
-  reservationId
+// Cancel reservation
+export const cancelReservation = async (
+  reservationId,
+  reason
 ) => {
-  return await api(
-    `/reservations/${reservationId}/complete`,
+  const response = await api.put(
+    `/reservations/${reservationId}/cancel`,
     {
-      method: "POST",
+      reason,
     }
   );
+
+  return response.data;
+};
+
+// Complete reservation
+export const completeReservation = async (reservationId) => {
+  const response = await api.put(
+    `/reservations/${reservationId}/complete`
+  );
+
+  return response.data;
+};
+
+// Expire reservations
+export const expireReservations = async () => {
+  const response = await api.put("/reservations/expire");
+
+  return response.data;
 };

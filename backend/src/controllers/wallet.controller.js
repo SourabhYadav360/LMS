@@ -1,217 +1,154 @@
 "use strict";
 
-const walletService = require("../services/wallet.service");
+const {
+  getWallet,
+  fundMemberWallet,
+  transferRentToLibrarian,
+  getTransactions,
+  getSuperAdminRevenue,
+} = require("../services/wallet");
 
 // ======================================================
-// GET MY WALLET
+// GET WALLET
 // ======================================================
 
-const getMyWallet = async (req, res) => {
+const getMyWallet = async (req, res, next) => {
   try {
-    const ownerId = req.user.userId;
-    const walletType = req.user.role;
-
-    const wallet =
-      await walletService.getWallet({
-        walletType,
-        ownerId,
-      });
+    const result = await getWallet({
+      walletType: req.user.role,
+      ownerId: req.user.userId,
+    });
 
     return res.status(200).json({
       success: true,
-      message: "Wallet fetched successfully",
-      data: {
-        wallet,
-      },
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// LIBRARIAN → MEMBER FUNDING
+// GET TRANSACTIONS
 // ======================================================
 
-const fundMemberWallet = async (
-  req,
-  res
-) => {
+const getMyTransactions = async (req, res, next) => {
   try {
-    const librarianId =
-      req.user.userId;
+    const result = await getTransactions({
+      walletType: req.user.role,
+      ownerId: req.user.userId,
+    });
 
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// FUND MEMBER WALLET
+// LIBRARIAN → MEMBER
+// ======================================================
+
+const fundMember = async (req, res, next) => {
+  try {
     const {
       memberId,
       amount,
       description,
     } = req.body;
 
-    const result =
-      await walletService.fundMemberWallet({
-        librarianId,
-        memberId,
-        amount,
-        description,
-      });
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Money transferred to member wallet successfully",
-      data: result,
-    });
-  } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
-  }
-};
-
-// ======================================================
-// GET MY TRANSACTIONS
-// ======================================================
-
-const getMyTransactions = async (
-  req,
-  res
-) => {
-  try {
-    const ownerId =
-      req.user.userId;
-
-    const walletType =
-      req.user.role;
-
-    const transactions =
-      await walletService.getTransactions({
-        walletType,
-        ownerId,
-      });
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Wallet transactions fetched successfully",
-      data: {
-        transactions,
-      },
-    });
-  } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
-  }
-};
-
-// ======================================================
-// PAY FINE
-// ======================================================
-
-const payFine = async (
-  req,
-  res
-) => {
-  try {
-    const memberId =
-      req.user.userId;
-
-    const {
+    const result = await fundMemberWallet({
+      librarianId: req.user.userId,
+      memberId,
       amount,
       description,
-    } = req.body;
-
-    const result =
-      await walletService.payFine({
-        memberId,
-        amount,
-        description,
-      });
+    });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Fine paid successfully",
+      message: "Member wallet funded successfully",
       data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// GET WALLET BY OWNER
-// ADMIN / LIBRARIAN USE
+// TRANSFER RENT
+// MEMBER → LIBRARIAN
 // ======================================================
 
-const getWalletByOwner = async (
-  req,
-  res
-) => {
+const transferRent = async (req, res, next) => {
   try {
     const {
-      walletType,
-      ownerId,
-    } = req.params;
+      librarianId,
+      amount,
+      rentalId,
+    } = req.body;
 
-    const wallet =
-      await walletService.getWallet({
-        walletType,
-        ownerId: Number(ownerId),
-      });
+    const result = await transferRentToLibrarian({
+      memberId: req.user.userId,
+      librarianId,
+      amount,
+      rentalId,
+    });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Wallet fetched successfully",
-      data: {
-        wallet,
-      },
+      message: "Rent transferred successfully",
+      data: result,
     });
   } catch (error) {
-    return res.status(
-      error.statusCode || 500
-    ).json({
-      success: false,
-      message:
-        error.message ||
-        "Something went wrong",
-    });
+    next(error);
   }
 };
 
 // ======================================================
-// EXPORTS
+// ADD FINE
+// LIBRARIAN → MEMBER FINE
+// ======================================================
+
+
+// ======================================================
+// GET SUPER ADMIN REVENUE
+// ======================================================
+
+const getRevenue = async (req, res, next) => {
+  try {
+    const {
+      fromDate,
+      toDate,
+    } = req.query;
+
+    const result = await getSuperAdminRevenue({
+      superAdminId: req.user.userId,
+      fromDate,
+      toDate,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ======================================================
+// EXPORT
 // ======================================================
 
 module.exports = {
   getMyWallet,
-  fundMemberWallet,
   getMyTransactions,
-  payFine,
-  getWalletByOwner,
+  fundMember,
+  transferRent,
+  
+  getRevenue,
 };

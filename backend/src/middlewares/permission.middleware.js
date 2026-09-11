@@ -1,117 +1,78 @@
 "use strict";
 
-const { Librarian } = require("../models");
-
-// ======================================================
-// REQUIRE PERMISSION
-// ======================================================
+const {Librarian,} = require("../models");
 
 const requirePermission = (permission) => {
   return async (req, res, next) => {
     try {
-      // ==================================================
-      // AUTH CHECK
-      // ==================================================
-
+      // User authenticated hai ya nahi
       if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: "Authentication required",
-        });
+        const error = new Error("Authentication required");
+        error.statusCode = 401;
+        throw error;
       }
 
-      // ==================================================
-      // SUPER ADMIN
-      // ==================================================
+      const { userId, role } = req.user;
 
-      // Super Admin ko saari permissions allowed hain.
-      if (req.user.role === "SUPER_ADMIN") {
+      // Super Admin ko sab permissions
+      if (role === "SUPER_ADMIN") {
         return next();
       }
 
-      // ==================================================
-      // MEMBER
-      // ==================================================
+      // Member permissions
+      if (role === "MEMBER") {
+        const allowedPermissions = [
+          "bookView",
+          "dashboardView",
+          "rentalCreate",
+          "rentalView",
+          "rentalReturn",
+          "reservationCreate",
+          "reservationView",
+          "walletView",
+        ];
 
-      if (req.user.role === "MEMBER") {
-        if (permission === "bookView") {
-          return next();
+        if (!allowedPermissions.includes(permission)) {
+          const error = new Error(
+            "You do not have permission to perform this action"
+          );
+          error.statusCode = 403;
+          throw error;
         }
 
-        return res.status(403).json({
-          success: false,
-          message: "Members do not have this permission",
-        });
+        return next();
       }
 
-      // ==================================================
-      // LIBRARIAN
-      // ==================================================
-
-      if (req.user.role === "LIBRARIAN") {
-        const librarian = await Librarian.findByPk(
-          req.user.userId
-        );
+      // Librarian permissions
+      if (role === "LIBRARIAN") {
+        const librarian = await Librarian.findByPk(userId);
 
         if (!librarian) {
-          return res.status(404).json({
-            success: false,
-            message: "Librarian not found",
-          });
+          const error = new Error("Librarian not found");
+          error.statusCode = 404;
+          throw error;
         }
-
-        // ==================================================
-        // WALLET MANAGE PERMISSION
-        // ==================================================
-
-        if (permission === "walletManage") {
-          if (!librarian.walletManage) {
-            return res.status(403).json({
-              success: false,
-              message:
-                "Permission denied. walletManage is required.",
-            });
-          }
-
-          return next();
-        }
-
-        // ==================================================
-        // NORMAL PERMISSION CHECK
-        // ==================================================
 
         if (!librarian[permission]) {
-          return res.status(403).json({
-            success: false,
-            message:
-              `Permission denied. ${permission} is required.`,
-          });
+          const error = new Error(
+            `You do not have ${permission} permission`
+          );
+          error.statusCode = 403;
+          throw error;
         }
 
         return next();
       }
 
-      // ==================================================
-      // UNKNOWN ROLE
-      // ==================================================
-
-      return res.status(403).json({
-        success: false,
-        message:
-          "You do not have permission to access this resource",
-      });
+      const error = new Error("Invalid user role");
+      error.statusCode = 403;
+      throw error;
     } catch (error) {
-      console.error(
-        "Permission middleware error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message: "Something went wrong",
-      });
+      next(error);
     }
   };
 };
 
-module.exports = requirePermission;
+module.exports = {
+  requirePermission,
+};

@@ -2,126 +2,122 @@
 
 const express = require("express");
 
-const reservationController = require(
-  "../controllers/reservation.controller"
-);
+const {
+  create,
+  getMy,
+  getById,
+  getAll,
+  approve,
+  reject,
+  cancel,
+  complete,
+  expire,
+} = require("../controllers/reservation.controller");
 
-const authenticate = require(
-  "../middlewares/auth.middleware"
-);
-
-const authorize = require(
-  "../middlewares/authorize.middleware"
-);
+const { authenticate } = require("../middlewares/auth.middleware");
+const {
+  requirePermission,
+} = require("../middlewares/permission.middleware");
 
 const router = express.Router();
 
 // ======================================================
-// MEMBER
 // CREATE RESERVATION
 // ======================================================
 
 router.post(
   "/",
   authenticate,
-  authorize("MEMBER"),
-  reservationController.createReservation
+  requirePermission("reservationCreate"),
+  create
 );
 
 // ======================================================
-// MEMBER
-// MY RESERVATIONS
+// GET MY RESERVATIONS
 // ======================================================
 
 router.get(
-  "/my-reservations",
+  "/my",
   authenticate,
-  authorize("MEMBER"),
-  reservationController.getMyReservations
+  requirePermission("reservationView"),
+  getMy
 );
 
 // ======================================================
-// ADMIN + LIBRARIAN
-// ALL RESERVATIONS
+// GET ALL RESERVATIONS
 // ======================================================
 
 router.get(
   "/",
   authenticate,
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-  reservationController.getAllReservations
+  requirePermission("reservationView"),
+  getAll
 );
 
 // ======================================================
-// MEMBER
-// SINGLE RESERVATION
+// APPROVE RESERVATION
+// ======================================================
+
+router.put(
+  "/:reservationId/approve",
+  authenticate,
+  requirePermission("reservationManage"),
+  approve
+);
+
+// ======================================================
+// REJECT RESERVATION
+// ======================================================
+
+router.put(
+  "/:reservationId/reject",
+  authenticate,
+  requirePermission("reservationManage"),
+  reject
+);
+
+// ======================================================
+// CANCEL RESERVATION
+// ======================================================
+
+router.put(
+  "/:reservationId/cancel",
+  authenticate,
+  requirePermission("reservationManage"),
+  cancel
+);
+
+// ======================================================
+// COMPLETE RESERVATION
+// ======================================================
+
+router.put(
+  "/:reservationId/complete",
+  authenticate,
+  requirePermission("reservationManage"),
+  complete
+);
+
+// ======================================================
+// EXPIRE RESERVATIONS
+// ======================================================
+
+router.put(
+  "/expire",
+  authenticate,
+  requirePermission("reservationManage"),
+  expire
+);
+
+// ======================================================
+// GET RESERVATION BY ID
 // ======================================================
 
 router.get(
   "/:reservationId",
   authenticate,
-  authorize("MEMBER"),
-  reservationController.getReservationById
-);
-
-// ======================================================
-// MEMBER
-// CANCEL
-// ======================================================
-
-router.post(
-  "/:reservationId/cancel",
-  authenticate,
-  authorize("MEMBER"),
-  reservationController.cancelReservation
-);
-
-// ======================================================
-// ADMIN + LIBRARIAN
-// APPROVE
-// ======================================================
-
-router.post(
-  "/:reservationId/approve",
-  authenticate,
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-  reservationController.approveReservation
-);
-
-// ======================================================
-// ADMIN + LIBRARIAN
-// REJECT
-// ======================================================
-
-router.post(
-  "/:reservationId/reject",
-  authenticate,
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-  reservationController.rejectReservation
-);
-
-// ======================================================
-// ADMIN + LIBRARIAN
-// COMPLETE
-// ======================================================
-
-router.post(
-  "/:reservationId/complete",
-  authenticate,
-  authorize(
-    "SUPER_ADMIN",
-    "LIBRARIAN"
-  ),
-  reservationController.completeReservation
+  requirePermission("reservationView"),
+  getById
 );
 
 module.exports = router;
