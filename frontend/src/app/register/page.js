@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useAuth } from "@/context/AuthContext";
 import {
   registerMember,
   login,
@@ -10,6 +11,7 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setUser } = useAuth();
 
   const [form, setForm] = useState({
     name: "",
@@ -49,10 +51,18 @@ export default function RegisterPage() {
       setSuccess("Registration successful. Logging you in...");
 
       // Automatic Login
-      await login({
+      const loginResult = await login({
         email: form.email,
         password: form.password,
       });
+
+      const loggedInUser = loginResult?.data?.user;
+
+      if (!loggedInUser) {
+        throw new Error("Login succeeded but user data was missing");
+      }
+
+      setUser(loggedInUser);
 
       // Dashboard
       router.replace("/member");
@@ -61,6 +71,7 @@ export default function RegisterPage() {
 
       setError(
         error.response?.data?.message ||
+          error.message ||
           "Registration failed"
       );
     } finally {

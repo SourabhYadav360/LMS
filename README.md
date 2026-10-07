@@ -7,7 +7,7 @@ Set the Render service root directory to `backend`, with `npm install` as the bu
 - `DATABASE_URL`: the PostgreSQL connection URL from Render.
 - `REDIS_URL`: the Redis/Key Value connection URL from Render.
 - `JWT_SECRET`: a newly generated, private signing secret.
-- `FRONTEND_URL`: `https://lms-beta-rosy-10.vercel.app`.
+- `FRONTEND_URL`: `https://lms-beta-rosy-10.vercel.app` (comma-separated if additional frontend origins are needed).
 - `NODE_ENV`: `production`.
 
 Run `npm run db:migrate` from the backend service directory once the database is attached, before using the API.
@@ -16,9 +16,9 @@ Run `npm run db:migrate` from the backend service directory once the database is
 
 Set the Vercel project's root directory to `frontend` and add this environment variable:
 
-- `NEXT_PUBLIC_API_URL`: `https://<your-render-backend-host>/api`.
+- `NEXT_PUBLIC_API_URL`: `https://lms-uh6q.onrender.com/api`.
 
-Redeploy the frontend after setting it. The backend URL must be the public HTTPS URL of the Render web service. Do not put database, Redis, or JWT secrets in Vercel or frontend source files.
+Redeploy the frontend after setting it. The frontend defaults to this API URL if the variable is not set. Set `REDIS_URL` on Render to the full Redis connection URL shown in the Render Redis/Key Value dashboard; the service identifier by itself is not a connection URL. Do not put database, Redis, or JWT secrets in Vercel or frontend source files.
 
 Keep `.env` files out of Git. If credentials were previously committed, rotate them in their respective providers; removing a file from a later commit does not remove it from Git history.
 

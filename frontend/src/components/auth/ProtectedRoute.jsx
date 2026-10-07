@@ -26,7 +26,7 @@ export default function ProtectedRoute({
     if (
       allowedRoles.length > 0 &&
       !allowedRoles.includes(user.role)
-    ) {p
+    ) {
       // Apne role ke dashboard par bhejo
       if (user.role === "MEMBER") {
         router.replace("/member");
