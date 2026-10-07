@@ -25,15 +25,27 @@ const app = express();
 // CORS
 // ======================================================
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const normalizeOrigin = (origin) => {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+};
+
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  "https://lms-beta-rosy-10.vercel.app",
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean),
+]);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      callback(null, !origin || allowedOrigins.includes(origin));
+      callback(null, !origin || allowedOrigins.has(normalizeOrigin(origin)));
     },
     credentials: true,
   })
