@@ -7,10 +7,10 @@ Set the Render service root directory to `backend`, with `npm install` as the bu
 - `DATABASE_URL`: the PostgreSQL connection URL from Render.
 - `REDIS_URL`: the Redis/Key Value connection URL from Render.
 - `JWT_SECRET`: a newly generated, private signing secret.
-- `FRONTEND_URL`: `https://lms-beta-rosy-10.vercel.app` (comma-separated if additional frontend origins are needed).
+- `FRONTEND_URL`: `https://lms-beta-rosy-10.vercel.app` (comma-separated if additional frontend origins are needed). The production Vercel origin is also explicitly allowed by the API.
 - `NODE_ENV`: `production`.
 
-Run `npm run db:migrate` from the backend service directory once the database is attached, before using the API.
+The backend `start` command applies pending migrations before starting the API, so the first deployment creates required database tables automatically. Keep `NODE_ENV=production` and `DATABASE_URL` configured in Render. You can also run `npm run db:migrate` from the backend service directory to apply migrations manually.
 
 ## Vercel frontend
 
