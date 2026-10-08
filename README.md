@@ -10,7 +10,7 @@ Set the Render service root directory to `backend`, with `npm install` as the bu
 - `FRONTEND_URL`: `https://lms-beta-rosy-10.vercel.app` (comma-separated if additional frontend origins are needed). The production Vercel origin is also explicitly allowed by the API.
 - `NODE_ENV`: `production`.
 
-The backend `start` command applies pending migrations before starting the API, so the first deployment creates required database tables automatically. Keep `NODE_ENV=production` and `DATABASE_URL` configured in Render. You can also run `npm run db:migrate` from the backend service directory to apply migrations manually.
+The backend `start` command applies pending migrations using the production database configuration before starting the API. It also starts the server in production mode (including PostgreSQL SSL), so the first deployment creates required database tables automatically. Keep `DATABASE_URL` configured in Render. You can run `npm run db:migrate:production` from the backend service directory to apply production migrations manually.
 
 ## Vercel frontend
 

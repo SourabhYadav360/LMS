@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "npm run db:migrate && node src/server.js",
+    "start": "npm run db:migrate:production && node src/start.js",
     "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:production": "sequelize-cli db:migrate --env production",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "db:seed": "sequelize-cli db:seed:all"
